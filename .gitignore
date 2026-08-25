@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# תוצרי ריצה
+data/*.db
+evals/results/*.csv
+build/
+dist/
