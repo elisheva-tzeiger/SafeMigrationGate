@@ -84,6 +84,9 @@ class GateState(TypedDict):
     # impact
     impact: list[ImpactRow]
 
+    # classification — written by classify_risk, read by report
+    classification: str
+
     # rewrite
     safe_sql: str | None
     eval_result: EvalResult | None
@@ -114,6 +117,7 @@ def initial_state(
         blocked=False,
         cited_rules=[],
         impact=[],
+        classification="",
         safe_sql=None,
         eval_result=None,
         rewrite_attempts=0,

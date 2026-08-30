@@ -104,3 +104,26 @@ def to_eval_result(report: InvariantReport, equivalence: int) -> EvalResult:
               and report["invariant_held"] and equivalence >= 4)
     return EvalResult(passed=passed, equivalence=equivalence,
                       validity=report["validity"], reasons=list(report["reasons"]))
+
+
+def fallback_safe_sql(statements: list[Statement], reason: str) -> str:
+    """A safe script produced without the model.
+
+    Every original statement is preserved as a comment inside a transaction that
+    rolls back, so the invariant holds by construction. It is deliberately inert:
+    when the model is unavailable, the honest output is "here is your script,
+    disarmed" rather than a guess at what you meant.
+    """
+    lines = [
+        "BEGIN;",
+        f"-- [SafeMigrationGate] the rewrite model was not available: {reason}",
+        "-- Every original statement is preserved below, commented out and unmodified.",
+        "-- Review each one by hand before enabling it.",
+        "",
+    ]
+    for statement in statements:
+        for line in statement["text"].strip().splitlines():
+            lines.append(f"-- {line}")
+        lines.append("")
+    lines += ["ROLLBACK;", "-- COMMIT;", ""]
+    return "\n".join(lines)
