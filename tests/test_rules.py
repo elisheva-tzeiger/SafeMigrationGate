@@ -152,10 +152,16 @@ def test_the_negative_control_produces_nothing():
     sql = (
         "BEGIN;\n"
         "ALTER TABLE users ADD COLUMN nickname TEXT;\n"
-        "UPDATE users SET nickname = name WHERE nickname IS NULL;\n"
-        "COMMIT;"
+        "COMMIT;\n"
     )
     assert ids_for(sql) == set()
+
+
+def test_sg012_also_fires_when_the_ddl_is_an_alter():
+    """MySQL commits implicitly before ALTER too, so the preceding DML can no
+    longer be rolled back. Narrowing SG012 to DROP/TRUNCATE would lose this."""
+    assert "SG012" in ids_for(
+        "UPDATE users SET status='x' WHERE id=1;\nALTER TABLE users ADD COLUMN n TEXT;")
 
 
 # --- SG013 is measured, not guessed -------------------------------------------

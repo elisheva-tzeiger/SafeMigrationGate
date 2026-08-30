@@ -47,8 +47,6 @@ RULE_SEVERITY: dict[str, Severity] = {
 }
 
 DDL_KINDS = frozenset({"DROP", "ALTER", "CREATE", "TRUNCATE"})
-# For SG012, only destructive DDL (implicit-commit risks) warrants the mixed-script warning.
-_DESTRUCTIVE_DDL_KINDS = frozenset({"DROP", "TRUNCATE"})
 DML_KINDS = frozenset({"DELETE", "UPDATE", "INSERT"})
 
 # sqlglot does not parse CREATE USER / ALTER ROLE; it returns a generic Command
@@ -201,7 +199,7 @@ def _script_rules(statements: list[Statement]) -> list[Finding]:
                               "The script is not wrapped in a transaction, so a failure "
                               "half-way through leaves the database partially changed."))
 
-    if kinds & _DESTRUCTIVE_DDL_KINDS and kinds & DML_KINDS:
+    if kinds & DDL_KINDS and kinds & DML_KINDS:
         found.append(_finding(0, "SG012",
                               "The script mixes schema changes with data changes. Many "
                               "engines cannot roll those back together."))
