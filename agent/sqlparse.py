@@ -6,10 +6,27 @@ is an explicit trial-parse heuristic, and it is documented as such in the report
 
 from __future__ import annotations
 
+import re
+
 import sqlglot
 from sqlglot import exp
 
 from agent.state import Statement
+
+_RE_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+_RE_LINE_COMMENT = re.compile(r"--[^\n]*")
+
+
+def strip_comments(sql: str) -> str:
+    """Remove SQL line comments (--) and block comments (/* */) from *sql*.
+
+    Block comments are stripped before line comments so that a ``--`` inside
+    a block comment does not confuse the line-comment regex.  The rest of the
+    text (including whitespace) is returned unchanged.
+    """
+    sql = _RE_BLOCK_COMMENT.sub("", sql)
+    sql = _RE_LINE_COMMENT.sub("", sql)
+    return sql
 
 # Ordered by preference: the first that parses wins, so the most portable and
 # most common dialect goes first.
@@ -75,18 +92,70 @@ def _kind_of(expression: exp.Expression) -> str:
 
 
 def _raw_segments(sql: str) -> list[str]:
-    """Split on ';' while keeping each segment's original spelling."""
-    segments, buffer, in_string = [], [], False
-    for char in sql:
-        if char == "'":
+    """Split on ';' while keeping each segment's original spelling.
+
+    Respects single-quoted strings, line comments (``--``), and block comments
+    (``/* */``).  A ``;`` that appears inside any of those contexts is *not*
+    treated as a statement separator.
+    """
+    segments: list[str] = []
+    buffer: list[str] = []
+    in_string = False
+    in_line_comment = False
+    in_block_comment = False
+    i = 0
+    n = len(sql)
+
+    while i < n:
+        ch = sql[i]
+        next_ch = sql[i + 1] if i + 1 < n else ""
+
+        # -- Enter / exit block comment
+        if not in_string and not in_line_comment and ch == "/" and next_ch == "*":
+            in_block_comment = True
+            buffer.append(ch)
+            buffer.append(next_ch)
+            i += 2
+            continue
+
+        if in_block_comment and ch == "*" and next_ch == "/":
+            in_block_comment = False
+            buffer.append(ch)
+            buffer.append(next_ch)
+            i += 2
+            continue
+
+        # -- Enter line comment
+        if not in_string and not in_block_comment and ch == "-" and next_ch == "-":
+            in_line_comment = True
+            buffer.append(ch)
+            buffer.append(next_ch)
+            i += 2
+            continue
+
+        # -- Exit line comment on newline (keep the newline in the buffer)
+        if in_line_comment and ch == "\n":
+            in_line_comment = False
+            buffer.append(ch)
+            i += 1
+            continue
+
+        # -- Toggle string literal on single-quote (only outside comments)
+        if not in_block_comment and not in_line_comment and ch == "'":
             in_string = not in_string
-        if char == ";" and not in_string:
+
+        # -- Semicolon is a separator only when outside strings and comments
+        if ch == ";" and not in_string and not in_block_comment and not in_line_comment:
             segments.append("".join(buffer))
             buffer = []
         else:
-            buffer.append(char)
+            buffer.append(ch)
+
+        i += 1
+
     segments.append("".join(buffer))
-    return [s for s in segments if s.strip()]
+    # Filter segments that contain nothing but whitespace and comments.
+    return [s for s in segments if strip_comments(s).strip()]
 
 
 def split_statements(sql: str, dialect: str) -> list[Statement]:
