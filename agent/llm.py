@@ -15,10 +15,11 @@ import re
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from agent.db import mask_url
+
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 
-_CONNECTION_PASSWORD = re.compile(r"://([^:/@\s]+):([^@\s]+)@")
 _API_KEY = re.compile(r"\bsk-[A-Za-z0-9_\-]{8,}")
 
 _tls_installed = False
@@ -51,7 +52,7 @@ def install_tls_trust() -> None:
 def scrub(text: str) -> str:
     """Mask secrets. Every string that reaches a log, the terminal, or LangSmith
     goes through this first."""
-    text = _CONNECTION_PASSWORD.sub(r"://\1:***@", text)
+    text = mask_url(text)
     return _API_KEY.sub("sk-***", text)
 
 

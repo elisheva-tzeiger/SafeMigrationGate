@@ -79,10 +79,39 @@ def test_invoke_text_returns_the_content():
          "connecting to postgresql://alice:***@db/prod now"),
         ("key sk-or-v1-abcdef0123456789abcdef done", "key sk-*** done"),
         ("nothing sensitive here", "nothing sensitive here"),
+        # passwords containing '@' must be fully masked (regression for _CONNECTION_PASSWORD)
+        ("postgresql://user:p@ssword@host/db", "postgresql://user:***@host/db"),
+        ("mssql+pyodbc://sa:P@ssw0rd!@host/db", "mssql+pyodbc://sa:***@host/db"),
+        # URL with no password should pass through unchanged
+        ("postgresql://alice@db/prod", "postgresql://alice@db/prod"),
+        # both an API key and a connection string with an '@' in the password
+        ("url=postgresql://svc:p@ss@host/db key=sk-or-v1-abcdef0123456789",
+         "url=postgresql://svc:***@host/db key=sk-***"),
     ],
 )
 def test_scrub_removes_secrets_before_they_reach_logs(raw, expected):
     assert scrub(raw) == expected
+
+
+def test_make_llm_explicit_model_wins_over_smg_model(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.setenv("SMG_MODEL", "some/env-model")
+    llm = make_llm("explicit/model-name")
+    assert llm.model_name == "explicit/model-name"
+
+
+def test_make_llm_smg_model_used_when_no_explicit_model(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.setenv("SMG_MODEL", "some/env-model")
+    llm = make_llm()
+    assert llm.model_name == "some/env-model"
+
+
+def test_make_llm_default_model_used_when_neither_explicit_nor_smg_model(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-test")
+    monkeypatch.delenv("SMG_MODEL", raising=False)
+    llm = make_llm()
+    assert llm.model_name == DEFAULT_MODEL
 
 
 def test_install_tls_trust_is_idempotent():
