@@ -199,6 +199,23 @@ def test_sg013_ignores_statements_that_already_batch():
     assert apply_measured_severity([], statements, impact) == []
 
 
+def test_sg013_stays_silent_on_an_unverified_row_even_above_the_threshold():
+    """Isolates the confidence guard. The row count clears the threshold, so only
+    `confidence` can suppress the finding — if that check were deleted, this test
+    would fail while the None-valued case would still pass."""
+    statements = split_statements("DELETE FROM audit_log;", "postgres")
+    impact = [{"statement_index": 0, "rows_affected": 150_000,
+               "confidence": "unverified", "note": "dry run was declined"}]
+    assert apply_measured_severity([], statements, impact) == []
+
+
+def test_sg012_does_not_fire_on_ddl_alone():
+    """The other half of the condition. The existing negative case is DML-only,
+    which can never fire SG012 whatever the rule does."""
+    assert "SG012" not in ids_for(
+        "BEGIN;\nCREATE TABLE t (i INT);\nALTER TABLE t ADD COLUMN j INT;\nCOMMIT;")
+
+
 def test_every_rule_has_a_title():
     expected = {f"SG{n:03d}" for n in range(1, 16)}
     assert set(RULE_TITLES) == expected
