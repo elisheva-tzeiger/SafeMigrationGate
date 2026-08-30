@@ -92,6 +92,10 @@ class GateState(TypedDict):
     eval_result: EvalResult | None
     rewrite_attempts: int
 
+    # approval gates
+    approved_dry_run: bool
+    approved_write: bool
+
     # output
     report_md: str | None
     written_files: list[str]
@@ -121,6 +125,8 @@ def initial_state(
         safe_sql=None,
         eval_result=None,
         rewrite_attempts=0,
+        approved_dry_run=False,
+        approved_write=False,
         report_md=None,
         written_files=[],
         node_trail=[],
