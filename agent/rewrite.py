@@ -37,6 +37,10 @@ REWRITE_CONTRACT = f"""\
 
 _STRING_LITERAL = re.compile(r"'(?:[^']|'')*'")
 _WHITESPACE = re.compile(r"\s+")
+# Strip only leading line-comment markers so that multi-line originals that
+# were commented out do not lose the token that joins adjacent words.
+# A trailing `-- note` after real code is intentionally left untouched.
+_LEADING_COMMENT_MARKER = re.compile(r"(?m)^\s*--\s?")
 
 
 class InvariantReport(TypedDict):
@@ -73,8 +77,11 @@ def check_invariant(
         validity = False
         reasons.append(f"safe_sql does not parse as {dialect}: {exc}")
 
-    # 2. no omissions -- present either as an executable statement or as a comment
-    haystack = normalize(safe_sql)
+    # 2. no omissions -- present either as an executable statement or as a comment.
+    # Strip leading line-comment markers before building the haystack so that a
+    # multi-line original that was commented out (rule 3 of the rewrite contract)
+    # matches even though its continuation lines each carry a "-- " prefix.
+    haystack = normalize(_LEADING_COMMENT_MARKER.sub("", safe_sql))
     missing = [s["text"].strip() for s in statements
                if normalize(s["text"]) not in haystack]
     no_omissions = not missing

@@ -120,6 +120,29 @@ def test_to_eval_result_carries_the_reasons_through():
     assert result["equivalence"] == 5
 
 
+def test_multiline_original_commented_out_is_not_an_omission():
+    """Finding 1 regression.  A two-line statement commented out across two lines
+    is not a missing original — the haystack must see past the '--' markers."""
+    sql = "DELETE FROM users\nWHERE id > 0;\nDROP TABLE t;"
+    statements = split_statements(sql, "postgres")
+    # Construct a model-shaped safe script that follows rule 3: each line of the
+    # original gets its own "-- " prefix, just as a real model output would look.
+    safe_sql = (
+        "BEGIN;\n"
+        "-- DELETE FROM users\n"
+        "-- WHERE id > 0;\n"
+        "DELETE FROM users WHERE /* FILL: condition */ 1 = 0;\n"
+        "-- DROP TABLE t;\n"
+        "ALTER TABLE t RENAME TO t_deprecated_2026;\n"
+        "ROLLBACK;\n"
+        "-- COMMIT;\n"
+    )
+    report = check_invariant(safe_sql, statements, "postgres")
+    assert report["no_omissions"] is True, report["reasons"]
+    assert report["validity"] is True, report["reasons"]
+    assert report["invariant_held"] is True, report["reasons"]
+
+
 def test_the_contract_states_all_eight_rules():
     for marker in ["BEGIN;", "verbatim", FILL_PLACEHOLDER, "SELECT COUNT(*)",
                    "ROLLBACK;", "-- COMMIT;", "RENAME TO", "batching",

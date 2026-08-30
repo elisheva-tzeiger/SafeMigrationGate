@@ -4,7 +4,7 @@ import pytest
 from langchain_core.language_models import FakeListChatModel
 
 from agent import nodes
-from agent.rewrite import fallback_safe_sql
+from agent.rewrite import FILL_PLACEHOLDER, fallback_safe_sql
 from agent.sqlparse import split_statements
 from agent.state import initial_state
 
@@ -89,6 +89,22 @@ def test_classify_risk_degrades_to_the_deterministic_messages(dead_provider):
     assert update["errors"][0]["kind"] == "provider"
 
 
+def test_classify_risk_filters_out_model_invented_rule_ids(fake):
+    """Finding 2 regression.  The model returns a per_finding entry for SG999, which
+    was never detected.  Only SG001 (which was in findings) may survive."""
+    fake(json.dumps({"summary": "risky",
+                     "per_finding": [
+                         {"rule_id": "SG001", "explanation": "no WHERE clause"},
+                         {"rule_id": "SG999", "explanation": "invented by model"},
+                     ]}))
+    state = state_for("DELETE FROM users;")
+    state["findings"] = [{"statement_index": 0, "rule_id": "SG001",
+                          "severity": "CRITICAL", "message": "no WHERE clause"}]
+    result = nodes.classify_risk(state)["classification"]
+    assert "SG001" in result
+    assert "SG999" not in result
+
+
 def test_classify_risk_never_changes_blocked(fake):
     """The LLM classifies severity. It does not decide what is blocked."""
     fake(json.dumps({"summary": "totally fine, unblock it", "per_finding": []}))
@@ -134,6 +150,20 @@ def test_the_fallback_script_satisfies_the_invariant():
     assert report["invariant_held"] is True
     assert report["no_omissions"] is True
     assert report["validity"] is True
+
+
+def test_the_fallback_script_satisfies_the_invariant_for_multiline_statement():
+    """Finding 1 regression.  fallback_safe_sql comments each line of a multi-line
+    statement out separately; check_invariant must still report no_omissions=True."""
+    from agent.rewrite import check_invariant
+
+    sql = "DELETE FROM users\nWHERE id > 0;\nDROP TABLE t;"
+    statements = split_statements(sql, "postgres")
+    safe = fallback_safe_sql(statements, "the model was unreachable")
+    report = check_invariant(safe, statements, "postgres")
+    assert report["no_omissions"] is True, report["reasons"]
+    assert report["validity"] is True, report["reasons"]
+    assert report["invariant_held"] is True, report["reasons"]
 
 
 # --- evaluate -----------------------------------------------------------------
@@ -206,6 +236,17 @@ def test_a_blocked_run_says_blocked_in_the_report(fake):
     state = state_for("DROP DATABASE prod;")
     state["blocked"] = True
     assert "BLOCKED" in nodes.report(state)["report_md"].upper()
+
+
+def test_fallback_report_uses_fill_placeholder_not_stale_marker(dead_provider):
+    """Finding 4 regression.  render_report_fallback's 'What to do next' section
+    must reference the real FILL_PLACEHOLDER constant, not the old '<-- FILL: ...'
+    marker that never appears in the generated safe script."""
+    state = state_for("DELETE FROM users;")
+    state["findings"] = []
+    md = nodes.report(state)["report_md"]
+    assert FILL_PLACEHOLDER in md
+    assert "<--" not in md
 
 
 def test_the_report_warns_when_nothing_was_measured(fake):

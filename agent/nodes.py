@@ -12,7 +12,7 @@ from pathlib import Path
 
 from agent import prompts, tools
 from agent.llm import invoke_json, invoke_text, make_llm
-from agent.rewrite import check_invariant, fallback_safe_sql, to_eval_result
+from agent.rewrite import FILL_PLACEHOLDER, check_invariant, fallback_safe_sql, to_eval_result
 from agent.rules import (
     apply_measured_severity,
     is_blocked,
@@ -290,7 +290,7 @@ def render_report_fallback(state: GateState) -> str:
               f"**Blocked:** {'yes' if state.get('blocked') else 'no'}", ""]
     impact_rows = state.get("impact") or []
     if impact_rows and not any(r["confidence"] != "unverified" for r in impact_rows):
-        lines += ["> **Row counts are not measured.** No count below was verified "
+        lines += ["> **Row counts below were not measured.** No count was verified "
                   "against a database.", ""]
 
     lines += ["## Findings", "", "| Statement | Rule | Severity | What it means |",
@@ -311,7 +311,7 @@ def render_report_fallback(state: GateState) -> str:
         lines.append("| — | not measured | `unverified` | The dry run did not run. |")
 
     lines += ["", "## What to do next", "",
-              "Review the safe script, replace every `<-- FILL: condition -->` "
+              f"Review the safe script, replace every `{FILL_PLACEHOLDER}` "
               "placeholder, and run it yourself. This tool never commits.", ""]
     return "\n".join(lines)
 
@@ -341,7 +341,7 @@ def report(state: GateState) -> dict:
         markdown = "**BLOCKED — this script has no safe version.**\n\n" + markdown
     impact = state.get("impact") or []
     if impact and not any(r["confidence"] != "unverified" for r in impact):
-        markdown = ("> **Row counts are not measured.** No count below was verified "
+        markdown = ("> **Row counts below were not measured.** No count was verified "
                     "against a database.\n\n") + markdown
 
     return {"report_md": markdown, "node_trail": ["report"]}
