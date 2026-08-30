@@ -12,6 +12,9 @@ evals/results/*.csv
 build/
 dist/
 
+# תוצרי בנייה של PyInstaller
+*.spec.bak
+
 # מצב מקומי של הכלים — לא חלק מהפרויקט
 .superpowers/
 .claude/settings.local.json
