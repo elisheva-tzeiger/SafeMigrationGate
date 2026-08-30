@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from agent.rewrite import REWRITE_CONTRACT
+from agent.rewrite import FILL_PLACEHOLDER, REWRITE_CONTRACT
 from agent.state import Finding, ImpactRow, Statement
 
 ROLE = (
@@ -127,7 +127,7 @@ original intent is preserved, on a scale of 1 to 5.
   2 - an operation is missing or its meaning changed materially
   1 - the safe version does something else entirely
 
-A WHERE clause replaced by a `WHERE <-- FILL: condition -->` template is correct
+A WHERE clause replaced by a `{FILL_PLACEHOLDER}` template is correct
 behaviour, not a loss of intent: score it 5. An invented predicate is a loss of
 intent: score it 2 or lower.
 

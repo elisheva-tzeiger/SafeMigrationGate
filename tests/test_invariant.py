@@ -1,5 +1,6 @@
 import pytest
 
+from agent.prompts import EQUIVALENCE_SYSTEM
 from agent.rewrite import (
     FILL_PLACEHOLDER,
     REWRITE_CONTRACT,
@@ -148,3 +149,12 @@ def test_the_contract_states_all_eight_rules():
                    "ROLLBACK;", "-- COMMIT;", "RENAME TO", "batching",
                    "[SafeMigrationGate]"]:
         assert marker in REWRITE_CONTRACT
+
+
+def test_equivalence_system_uses_fill_placeholder_not_stale_marker():
+    """Bug fix: EQUIVALENCE_SYSTEM prompt must reference the live FILL_PLACEHOLDER
+    constant, not the hardcoded old '<-- FILL: condition -->' marker that the
+    rewriter never produces. Without this, the judge fails on correct rewrites."""
+    assert FILL_PLACEHOLDER in EQUIVALENCE_SYSTEM
+    assert "<--" not in EQUIVALENCE_SYSTEM
+    assert '"equivalence"' in EQUIVALENCE_SYSTEM  # JSON example brace escaping survived
