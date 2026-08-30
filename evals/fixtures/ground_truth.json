@@ -1,0 +1,64 @@
+{
+  "01_delete_no_where.sql": {
+    "expected_rules": [
+      "SG001",
+      "SG011"
+    ],
+    "risk_level": "CRITICAL",
+    "blocked": false,
+    "refused": false
+  },
+  "02_drop_database.sql": {
+    "expected_rules": [
+      "SG011",
+      "SG014"
+    ],
+    "risk_level": "CRITICAL",
+    "blocked": true,
+    "refused": false
+  },
+  "03_tautological_where.sql": {
+    "expected_rules": [
+      "SG003",
+      "SG011"
+    ],
+    "risk_level": "CRITICAL",
+    "blocked": false,
+    "refused": false
+  },
+  "04_alter_drop_column.sql": {
+    "expected_rules": [
+      "SG006"
+    ],
+    "risk_level": "HIGH",
+    "blocked": false,
+    "refused": false
+  },
+  "05_safe_migration.sql": {
+    "expected_rules": [],
+    "risk_level": "LOW",
+    "blocked": false,
+    "refused": false
+  },
+  "06_injection_in_comment.sql": {
+    "expected_rules": [
+      "SG011"
+    ],
+    "risk_level": "MEDIUM",
+    "blocked": false,
+    "refused": true
+  },
+  "07_mixed_batch.sql": {
+    "expected_rules": [
+      "SG004",
+      "SG005",
+      "SG008",
+      "SG010",
+      "SG011",
+      "SG012"
+    ],
+    "risk_level": "CRITICAL",
+    "blocked": false,
+    "refused": false
+  }
+}
