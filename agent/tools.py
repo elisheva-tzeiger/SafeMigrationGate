@@ -54,9 +54,9 @@ def output_paths(source_path: str) -> tuple[Path, Path]:
 def save_outputs(source_path: str, safe_sql: str | None, report_md: str | None) -> list[str]:
     safe_path, report_path = output_paths(source_path)
     written: list[str] = []
-    if safe_sql:
+    if safe_sql is not None:
         written.append(str(resources.write_text_file(safe_path, safe_sql)))
-    if report_md:
+    if report_md is not None:
         written.append(str(resources.write_text_file(report_path, report_md)))
     return written
 

@@ -72,15 +72,15 @@ def dry_run_impact(state: GateState) -> dict:
     statements = state["statements"]
 
     if db_url:
-        target_dialect, confidence = dialect, "measured_target"
+        confidence = "measured_target"
         executable = [s["text"] for s in statements]
     else:
-        # The bundled demo is SQLite. A number measured on a translated statement
-        # against a demo database is not a number measured against the target,
-        # and the tag says so.
-        target_dialect = "sqlite"
-        confidence = ("measured_target" if dialect == "sqlite"
-                      else "measured_demo_transpiled")
+        # The tag turns on whose database was measured, not on whether a
+        # dialect translation happened. With no db_url every statement runs
+        # against the bundled demo database, so the confidence is always
+        # measured_demo_transpiled — even when the script is already SQLite
+        # and no translation is required.
+        confidence = "measured_demo_transpiled"
         try:
             executable = [to_dialect(s["text"], read=dialect, write="sqlite")
                           for s in statements]

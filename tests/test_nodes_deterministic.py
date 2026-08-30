@@ -108,6 +108,25 @@ def test_dry_run_impact_tags_a_real_target_differently(monkeypatch, tmp_path):
     assert update["impact"][0]["confidence"] == "measured_target"
 
 
+def test_a_sqlite_script_against_the_demo_is_still_not_a_target_measurement(
+        monkeypatch, tmp_path):
+    """The tag turns on whose database was measured, not on whether a dialect
+    translation happened. With no db_url the numbers come from the bundled demo,
+    so calling them measured_target would present seeded rows as the user's own."""
+    from data.seed import build_demo_db
+
+    db = build_demo_db(tmp_path / "demo.db", large_rows=10)
+    monkeypatch.setattr("agent.tools.resources.demo_db_url",
+                        lambda: f"sqlite:///{db}")
+    state = initial_state("x.sql", "DELETE FROM users;", "sqlite", None)
+    state["statements"] = ingest_statements("DELETE FROM users;")
+
+    update = dry_run_impact(state)
+
+    assert update["impact"][0]["rows_affected"] == 500
+    assert update["impact"][0]["confidence"] == "measured_demo_transpiled"
+
+
 def test_dry_run_impact_degrades_instead_of_crashing(monkeypatch):
     """A database that cannot be reached must not stop the run. Every row becomes
     unverified and the graph carries on."""
