@@ -11,3 +11,7 @@ data/*.db
 evals/results/*.csv
 build/
 dist/
+
+# מצב מקומי של הכלים — לא חלק מהפרויקט
+.superpowers/
+.claude/settings.local.json
