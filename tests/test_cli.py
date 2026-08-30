@@ -119,3 +119,38 @@ def test_free_text_question_opens_with_scope_sentence(capsys):
     hits_idx = printed.find("knowledge base")
     # scope sentence comes first
     assert scope_idx < hits_idx
+
+
+# Finding 1: _confirm must use injectable ask_line, not bare input()
+def test_confirm_returns_true_when_ask_line_returns_y():
+    """A caller can supply the answer without touching stdin."""
+    repl = Repl()
+    repl.ask_line = lambda _prompt: "y"
+    assert repl._confirm("Proceed?") is True
+
+
+def test_confirm_returns_false_when_ask_line_returns_n():
+    repl = Repl()
+    repl.ask_line = lambda _prompt: "n"
+    assert repl._confirm("Proceed?") is False
+
+
+def test_confirm_returns_false_when_ask_line_raises_eoferror():
+    repl = Repl()
+    repl.ask_line = lambda _prompt: (_ for _ in ()).throw(EOFError())
+    assert repl._confirm("Proceed?") is False
+
+
+# Finding 2: no-hits branch of _cmd_ask must also open with scope sentence
+def test_no_hits_branch_opens_with_scope_sentence(capsys):
+    """The no-hits branch must state scope first, matching the hits branch."""
+    # "photosynthesis biology" has no SQL-safety relevance — confirmed 0 BM25 hits
+    repl = Repl()
+    repl.handle("photosynthesis biology")
+    printed = capsys.readouterr().out
+    # Confirm we took the no-hits path (no KB hit listing)
+    assert "Use `why" not in printed, (
+        "Expected the no-hits path but got KB hits — pick a different query"
+    )
+    # Scope sentence must still be present
+    assert "I only review destructive SQL migration scripts" in printed

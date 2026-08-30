@@ -77,6 +77,7 @@ class Repl:
         self.db_url: str | None = None
         self.transcript: list[str] = []
         self.graph = build_graph(checkpointer=MemorySaver())
+        self.ask_line = input
 
     # -- output helpers --------------------------------------------------------
     def say(self, message: str) -> None:
@@ -84,7 +85,7 @@ class Repl:
 
     def _confirm(self, question: str) -> bool:
         try:
-            answer = input(f"{question} [Y/N] ").strip().lower()
+            answer = self.ask_line(f"{question} [Y/N] ").strip().lower()
         except EOFError:
             return False
         return answer in {"y", "yes"}
@@ -148,8 +149,9 @@ class Repl:
     def _cmd_ask(self, question: str) -> bool:
         hits = tools.search_knowledge(question, k=3)
         if not hits:
-            self.say("[yellow]Nothing in the knowledge base matches that.[/yellow] "
-                     "This tool only reviews destructive SQL scripts — try `help`.")
+            self.say("I only review destructive SQL migration scripts. "
+                     "[yellow]Nothing in the knowledge base matches that.[/yellow] "
+                     "Try `help`.")
             return True
         self.say("I only review destructive SQL migration scripts. "
                  "The closest entries in the safety knowledge base are:")
