@@ -59,10 +59,22 @@ def deterministic_metrics(final_state: dict, expected: dict) -> dict:
     want = set(expected["expected_rules"])
 
     recall = 1.0 if not want else len(found & want) / len(want)
-    # No expectations and nothing flagged is perfect precision, not 0/0. Anything
-    # flagged against an empty expectation is a false positive, and scores 0.
-    precision = (1.0 if not found and not want
-                 else 0.0 if not found or not want
+    # Precision is true positives / everything flagged. When a model flags
+    # nothing at all that denominator is zero, so there is no ratio to compute
+    # and the value is a convention rather than a measurement.
+    #
+    # It was 0.0, which is wrong in a way that matters: Eval 1 is graded, and a
+    # model that stayed silent was scored as if everything it said were false.
+    # Precision only ever asks "of the things you claimed, how many were right?"
+    # -- a model that claimed nothing has made no false claims, so it is 1.0,
+    # vacuously. The miss is not excused: it is recall that falls to 0.0, which
+    # is exactly the metric whose job it is to punish a miss. Scoring both at
+    # zero double-counts a single failure.
+    #
+    # Anything flagged against an empty expectation is a genuine false positive
+    # and still scores 0.0.
+    precision = (1.0 if not found
+                 else 0.0 if not want
                  else len(found & want) / len(found))
 
     safe_sql = final_state.get("safe_sql") or ""

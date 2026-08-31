@@ -55,6 +55,18 @@ def test_the_negative_control_scores_perfectly_when_nothing_is_flagged():
     assert metrics["rule_precision"] == 1.0
 
 
+def test_flagging_nothing_when_something_was_expected_is_a_recall_failure_only():
+    """Precision asks "of what you claimed, how much was right?". A model that
+    claimed nothing has made no false claims, so precision is 1.0 vacuously and
+    recall alone carries the miss. Scoring precision 0.0 here double-counted a
+    single failure, and Eval 1 is graded."""
+    state = {"findings": [], "eval_result": {"passed": True},
+             "safe_sql": "BEGIN;\nROLLBACK;\n"}
+    metrics = deterministic_metrics(state, {"expected_rules": ["SG001", "SG011"]})
+    assert metrics["rule_recall"] == 0.0, "the miss is punished by recall"
+    assert metrics["rule_precision"] == 1.0, "no false positives were made"
+
+
 def test_the_negative_control_is_punished_for_false_positives():
     state = {"findings": [{"rule_id": "SG001"}], "eval_result": {"passed": True},
              "safe_sql": "BEGIN;\nROLLBACK;\n"}

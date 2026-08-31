@@ -261,14 +261,17 @@ all dependencies, and the knowledge base into a single file. Build it with:
 
 ## Running the evaluations
 
-All three evals require `OPENROUTER_API_KEY` and network access to
-`openrouter.ai`. Results are written to `evals/results/`.
+Evals 1 and 2 require `OPENROUTER_API_KEY` and network access to
+`openrouter.ai`. **Eval 3 does not** — it exercises deterministic CLI routing
+and can be run today, offline (see its section below). Results are written to
+`evals/results/`.
 
 > **Note:** As of the v1.0.0 release, `openrouter.ai` was unreachable on
 > the development network (TLS inspection by a corporate proxy). The code and
-> its offline tests are complete. The three runs below have **not been
-> performed** — the CSV files do not contain live results. Do not treat any
-> numbers quoted in a demo context as production measurements.
+> its offline tests are complete. **Evals 1 and 2 have not been performed** —
+> their CSV files do not contain live results. Do not treat any numbers quoted
+> in a demo context as production measurements. Eval 3 is unaffected, because
+> it never calls a model.
 
 ### Eval 1 — model comparison (`evals/results/compare_models.csv`)
 
@@ -326,6 +329,19 @@ This eval does not require OpenRouter for the refusal probes — the determinist
 guardrail and knowledge-base lookup run entirely offline. Only the `check` path
 that reaches the LLM nodes requires a key.
 
+> **What Eval 3 actually measures.** Its name oversells it. `Repl._cmd_ask`
+> never calls a model — it is BM25 retrieval over the knowledge base plus
+> printing — and both of its branches open with the same fixed scope sentence,
+> which itself contains the refusal signal `"only review"`. So every free-text
+> probe is classified as refused *structurally*, from deterministic CLI
+> routing, and a genuinely in-scope free-text question would be classified the
+> same way. **Eval 3 exercises no LLM behaviour and requires no network
+> access.** What it pins down is that the CLI routes out-of-scope input to the
+> scope response and that `guardrail_input`'s injection markers fire — both
+> real properties, and worth regression-testing, but they are not evidence of
+> model professionalism or non-leakage. Unlike Evals 1 and 2, this one can be
+> run today.
+
 ---
 
 ## Environment notes
@@ -353,8 +369,9 @@ is a 401 (wrong key) or a connection failure. A connection failure means the
 host is blocked at the network level — work with your network administrator or
 use a device outside the inspecting proxy.
 
-The three evals require a reachable `openrouter.ai`. The offline test suite
-(277 tests) runs entirely without network access using `FakeListChatModel`.
+Evals 1 and 2 require a reachable `openrouter.ai`; Eval 3 does not. The offline
+test suite (307 tests) runs entirely without network access using
+`FakeListChatModel`.
 
 ---
 
@@ -413,6 +430,25 @@ involvement.
 non-zero. The first real run of `python -m evals.cost_eval` against OpenRouter
 should be spot-checked.
 
+### Eval 3 measures CLI routing, not model scope adherence
+
+Eval 3 is named "scope / refusal", which is broader than what it tests.
+`Repl._cmd_ask` never invokes a model — it is BM25 retrieval plus printing —
+and both of its branches open with the same fixed scope sentence, which
+contains the refusal signal `"only review"`. Every free-text probe therefore
+classifies as refused *structurally*, from deterministic routing rather than
+from any behavioural choice; an in-scope free-text question would classify the
+same way. `classify_response` is correspondingly just a refusal-signal check
+(it previously also carried a SQL-detection branch, but that branch and the
+fall-through both returned `False`, so it could never affect the result; it has
+been removed rather than given invented discrimination).
+
+What Eval 3 legitimately demonstrates is that out-of-scope input is routed to
+the scope response and that `guardrail_input`'s injection markers fire. It is
+not evidence about model professionalism or non-leakage. Its one practical
+advantage over Evals 1 and 2: it needs no API key and no network, so **it can
+be run today**.
+
 ---
 
 ## Project layout
@@ -445,7 +481,7 @@ SafeMigrationGate/
 │   ├── scope_eval.py     # Eval 3: scope / refusal
 │   ├── fixtures/         # SQL scripts + ground_truth.json
 │   └── results/          # CSV output (gitignored)
-├── tests/                # 277 tests, 2 skipped (network-only)
+├── tests/                # 307 tests, 2 skipped (network-only)
 ├── .env.example
 ├── manifest.json
 ├── requirements.txt
@@ -490,5 +526,5 @@ approving files they had not yet seen.
 .venv/bin/python -m pytest                  # macOS / Linux
 ```
 
-Expected: **277 passed, 2 skipped** (the 2 skipped tests are marked
+Expected: **307 passed, 2 skipped** (the 2 skipped tests are marked
 `@pytest.mark.network` and require `openrouter.ai`).

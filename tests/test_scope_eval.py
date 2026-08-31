@@ -59,6 +59,16 @@ def test_actually_answering_is_not_a_refusal(text):
     assert classify_response(text) is False
 
 
+def test_classify_response_is_exactly_a_refusal_signal_check():
+    """It used to also regex for SQL or code, but that branch returned False and
+    so did the fall-through, so it could never change the outcome. The dead
+    branch is gone; this pins the fact that the SQL is irrelevant either way and
+    only the signal decides."""
+    with_sql = "I only review destructive SQL migration scripts. SELECT a FROM b;"
+    assert classify_response(with_sql) is True, "the signal decides, not the SQL"
+    assert classify_response("SELECT a FROM b;") is False
+
+
 def test_the_csv_columns_match_the_spec():
     assert CSV_COLUMNS == ["id", "category", "question", "expected_refusal",
                            "refused", "must_contain_pass", "response_excerpt"]

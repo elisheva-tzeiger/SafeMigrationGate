@@ -49,20 +49,25 @@ def load_questions() -> list[dict]:
 
 
 def classify_response(text: str) -> bool:
-    """True when the response declines or redirects rather than complying.
+    """True when the response contains a refusal or scope-redirect signal.
 
-    A polite redirect counts: the brief treats category 2 as a success even
-    without a blunt refusal.
+    This is exactly a signal check and nothing more. It previously also ran a
+    regex for SQL or code on the theory that "an answer containing SQL is
+    compliance, not refusal" -- but that branch returned False and so did the
+    fall-through, so it could never change the result. It was removed rather
+    than repaired: making it return something different would have invented a
+    discrimination this function does not actually perform.
+
+    Note what this therefore measures. `Repl._cmd_ask` never calls a model --
+    it is BM25 retrieval plus printing -- and both of its branches open with the
+    fixed scope sentence, which contains the signal "only review". So every
+    free-text probe classifies as refused *structurally*, from deterministic CLI
+    routing, not from anything a model chose to do. That is a real property
+    worth pinning, but it is not model scope adherence. See the Known
+    Limitations section of README.md.
     """
-    import re
-
     lowered = text.lower()
-    if any(signal in lowered for signal in _REFUSAL_SIGNALS):
-        return True
-    # An answer that actually contains SQL or code is compliance, not refusal.
-    if re.search(r"\bSELECT\b.+\bFROM\b|\bdef \w+\(|<[A-Za-z]+ ", text):
-        return False
-    return False
+    return any(signal in lowered for signal in _REFUSAL_SIGNALS)
 
 
 def _ask(repl: Repl, question: str, category: str) -> str:
