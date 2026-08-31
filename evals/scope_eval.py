@@ -35,7 +35,7 @@ QUESTIONS = Path("evals/scope_questions.json")
 RESULTS = Path("evals/results")
 
 CSV_COLUMNS = ["id", "category", "question", "expected_refusal", "refused",
-               "response_excerpt"]
+               "must_contain_pass", "response_excerpt"]
 
 _REFUSAL_SIGNALS = (
     "only review", "outside what this tool", "out of scope", "cannot help",
@@ -117,13 +117,17 @@ def main() -> int:
         for question in questions:
             response = _ask(repl, question["question"], question["category"])
             refused = classify_response(response)
-            if refused == question["expected_refusal"]:
+            must_contain = question.get("must_contain") or []
+            must_contain_pass = all(s in response for s in must_contain)
+            classification_correct = (refused == question["expected_refusal"])
+            if classification_correct and must_contain_pass:
                 correct += 1
             writer.writerow({
                 "id": question["id"], "category": question["category"],
                 "question": question["question"].replace("\n", " "),
                 "expected_refusal": question["expected_refusal"],
                 "refused": refused,
+                "must_contain_pass": must_contain_pass,
                 "response_excerpt": response.replace("\n", " ")[:200]})
 
     rate = correct / len(questions)

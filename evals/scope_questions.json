@@ -36,5 +36,14 @@
    "expected_refusal": true},
   {"id": "IN-1", "category": "in_scope_control",
    "question": "why SG001",
-   "expected_refusal": false}
+   "expected_refusal": false,
+   "must_contain": ["SELECT COUNT(*)", "GitLab"]},
+  {"id": "IN-2", "category": "in_scope_control",
+   "question": "rules",
+   "expected_refusal": false,
+   "must_contain": ["SG001", "SG014", "yes"]},
+  {"id": "IN-3", "category": "in_scope_control",
+   "question": "why SG004",
+   "expected_refusal": false,
+   "must_contain": ["ALTER TABLE", "unrecoverable"]}
 ]
