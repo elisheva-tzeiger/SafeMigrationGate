@@ -1,0 +1,47 @@
+{
+  "name": "SafeMigrationGate",
+  "version": "1.0.0",
+  "description": "A pre-flight gate for destructive SQL migration scripts. It detects dangerous operations from the syntax tree, measures how many rows each one would really affect using a dry run that ends in ROLLBACK, and returns a safe version of the script together with a risk report. It never commits.",
+  "creator_name": "Elisheva Schlissel",
+  "contact_information": "elishevas@aman.co.il",
+  "release_date": "2026-08-30",
+  "repository_url": "https://github.com/<REPLACE_WITH_ORG_OR_USER>/SafeMigrationGate",
+  "download_url": "https://github.com/<REPLACE_WITH_ORG_OR_USER>/SafeMigrationGate/releases/download/v1.0.0/agent.exe",
+  "target_audience": "Database Administrators, Backend Engineers, DevOps and SRE teams",
+  "professional_fields": [
+    "Database Administration",
+    "Software Development",
+    "Site Reliability Engineering"
+  ],
+  "tasks_capable_of_performing": [
+    "Static analysis of destructive SQL against 15 safety rules",
+    "Measuring real row impact via a dry run that always rolls back",
+    "Rewriting a script into a safe, non-committing version",
+    "Producing a risk report with confidence-tagged row counts"
+  ],
+  "examples_of_suitable_questions": [
+    "Check this migration before I run it on production.",
+    "How many rows would this DELETE actually touch?",
+    "Why is DROP TABLE more dangerous than TRUNCATE?"
+  ],
+  "technical_specifications": {
+    "framework": "LangGraph",
+    "llm_provider": "OpenRouter",
+    "supported_models": [
+      "anthropic/claude-sonnet-4.5",
+      "deepseek/deepseek-chat-v3-0324:free",
+      "meta-llama/llama-3.3-70b-instruct:free"
+    ],
+    "features_enabled": {
+      "rag": true,
+      "web_search": false,
+      "code_execution": true,
+      "mcp_support": false
+    },
+    "required_permissions": [
+      "local_file_read",
+      "local_file_write",
+      "database_read_only_dry_run"
+    ]
+  }
+}
