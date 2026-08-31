@@ -271,6 +271,26 @@ def _raw_segments(sql: str) -> list[str]:
 split_segments = _raw_segments
 
 
+def extract_comments(sql: str) -> str:
+    """Return only the comment text in *sql*, one comment per line.
+
+    The complement of :func:`strip_comments`.  An instruction aimed at the
+    reviewer of a script lives in a comment; the same words inside a string
+    literal or an identifier are data, and a migration is entitled to contain
+    them.  Scanning comments alone is what lets ``'contract as agreed'`` through
+    while still catching ``-- ignore all previous instructions``.
+    """
+    comments: list[str] = []
+    for match in _RE_BLOCK_COMMENT.finditer(sql):
+        comments.append(match.group(0)[2:-2] if len(match.group(0)) >= 4
+                        else match.group(0))
+    # Line comments are found in the block-comment-free text, so that a `--`
+    # inside a block comment is not counted twice.
+    for match in _RE_LINE_COMMENT.finditer(_RE_BLOCK_COMMENT.sub("", sql)):
+        comments.append(match.group(0)[2:])
+    return "\n".join(comments)
+
+
 def split_statements(sql: str, dialect: str) -> list[Statement]:
     """Parse `sql` into Statement records, preserving each statement's original text."""
     segments = _raw_segments(sql)

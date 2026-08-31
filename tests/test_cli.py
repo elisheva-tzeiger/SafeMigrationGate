@@ -103,6 +103,22 @@ def test_summary_writes_the_transcript(tmp_path):
     assert "CRITICAL" in target.read_text(encoding="utf-8")
 
 
+def test_summary_scrubs_secrets_before_writing_them_to_disk(tmp_path):
+    """The transcript holds whatever the user typed. It was written straight to
+    disk, so a pasted connection string or API key landed there in clear text."""
+    repl = Repl()
+    repl.transcript.append("postgresql://alice:s3cr3t@db/prod")
+    repl.transcript.append("key sk-or-v1-abcdef0123456789abcdef")
+    target = tmp_path / "session.txt"
+
+    repl.handle(f"summary {target}")
+
+    written = target.read_text(encoding="utf-8")
+    assert "s3cr3t" not in written
+    assert "abcdef0123456789" not in written
+    assert "postgresql://alice:***@db/prod" in written
+
+
 def test_help_covers_every_command():
     for command in ("check", "db", "rules", "why", "summary", "help", "quit"):
         assert command in HELP_TEXT

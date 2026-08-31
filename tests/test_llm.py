@@ -87,6 +87,19 @@ def test_invoke_text_returns_the_content():
         # both an API key and a connection string with an '@' in the password
         ("url=postgresql://svc:p@ss@host/db key=sk-or-v1-abcdef0123456789",
          "url=postgresql://svc:***@host/db key=sk-***"),
+        # Two connection strings on one line: the old pattern anchored to the
+        # last '@' in the whole string, so it masked across both and destroyed
+        # the first host along with the entire second URL.
+        ("mysql://root:pw@h1/db and postgres://bob:pw2@h2/db",
+         "mysql://root:***@h1/db and postgres://bob:***@h2/db"),
+        # A password passed as a query parameter rather than in the userinfo.
+        ("postgresql://u:p@h/db?password=topsecret",
+         "postgresql://u:***@h/db?password=***"),
+        # The ODBC form, which is how MSSQL credentials are normally passed.
+        ("mssql+pyodbc:///?odbc_connect=SERVER=s;UID=sa;PWD=SuperSecret;",
+         "mssql+pyodbc:///?odbc_connect=SERVER=s;UID=sa;PWD=***;"),
+        # Ordinary prose beginning "sk-" is not an API key.
+        ("the sk-learning curve was steep", "the sk-learning curve was steep"),
     ],
 )
 def test_scrub_removes_secrets_before_they_reach_logs(raw, expected):

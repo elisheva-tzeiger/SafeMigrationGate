@@ -24,8 +24,24 @@ _SQLGLOT_DIALECT: dict[str, str] = {
     "oracle": "oracle",
 }
 
-# user:password@  ->  user:***@   (the password is anything up to the last '@')
-_CREDENTIALS = re.compile(r"://([^:/@]+):(.*)@(?=[^@]*$)")
+# user:password@host  ->  user:***@host
+#
+# The password runs up to the last '@' *before the host*, not the last '@' in
+# the whole string. Anchoring to end-of-string (the previous `(?=[^@]*$)`) meant
+# that with two connection strings on one line the match ran across both, so
+# 'mysql://root:pw@h1/db and postgres://bob:pw2@h2/db' collapsed to
+# 'mysql://root:***@h2/db' -- h1 and the entire second URL silently destroyed.
+#
+# `[^\s]*?` keeps the match inside a single URL (a connection string has no
+# spaces), and the trailing lookahead requires what follows to look like a host,
+# which still allows '@' inside the password itself: 'sa:P@ssw0rd!@host'.
+_CREDENTIALS = re.compile(r"://([^:/@\s]+):([^\s]*?)@(?=[^@/\s]+[/:\s]|[^@/\s]+$)")
+
+# Passwords also travel outside userinfo: as a query parameter on the URL, and
+# as a PWD=/PASSWORD= key in an ODBC connection string. The ODBC form is the
+# standard way to pass MSSQL credentials, and scrub() is the single chokepoint
+# for both the terminal and LangSmith traces, so both are masked here.
+_QUERY_PASSWORD = re.compile(r"(?i)\b(password|pwd)(\s*=\s*)([^;&\s\"']+)")
 
 
 class DryRunRow(TypedDict):
@@ -41,7 +57,8 @@ class DryRunFailure(Exception):
 
 def mask_url(url: str) -> str:
     """Never print a connection string without running it through this first."""
-    return _CREDENTIALS.sub(r"://\1:***@", url)
+    masked = _CREDENTIALS.sub(r"://\1:***@", url)
+    return _QUERY_PASSWORD.sub(r"\1\2***", masked)
 
 
 def make_engine(db_url: str) -> Engine:

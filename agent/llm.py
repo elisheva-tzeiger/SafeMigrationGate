@@ -20,7 +20,13 @@ from agent.db import mask_url
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 
-_API_KEY = re.compile(r"\bsk-[A-Za-z0-9_\-]{8,}")
+# `\bsk-[A-Za-z0-9_\-]{8,}` also matched ordinary prose beginning "sk-", so a
+# sentence mentioning "sk-learning-curve" came out redacted. Two properties
+# separate a real key from an English phrase: real keys are long, and they mix
+# letters with digits. Requiring 12+ body characters and at least one digit
+# keeps every real key -- OpenAI and OpenRouter keys are 32+ base62 characters
+# and always contain digits -- while a hyphenated English phrase rarely does.
+_API_KEY = re.compile(r"\bsk-(?=[A-Za-z0-9_\-]*\d)[A-Za-z0-9_\-]{12,}")
 
 _tls_installed = False
 

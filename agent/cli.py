@@ -168,7 +168,10 @@ class Repl:
             return True
         from agent.resources import write_text_file
 
-        path = write_text_file(Path(argument), "\n".join(self.transcript) + "\n")
+        # scrub before writing: the transcript holds whatever the user typed,
+        # which may include an API key or a connection string pasted by hand.
+        path = write_text_file(Path(argument),
+                               scrub("\n".join(self.transcript)) + "\n")
         self.say(f"[green]Transcript written to {path}[/green]")
         return True
 

@@ -22,6 +22,7 @@ from agent.rules import (
 from agent.sqlparse import (
     ParseFailure,
     classify_transaction_control,
+    extract_comments,
     resolve_dialect,
     split_statements,
     to_dialect,
@@ -172,8 +173,36 @@ def write_files(state: GateState) -> dict:
 INJECTION_MARKERS: tuple[str, ...] = (
     "ignore all previous", "ignore previous instructions", "disregard the above",
     "you are now", "forget your instructions", "system prompt",
-    "output commit", "act as", "jailbreak",
+    "output commit", "jailbreak",
+    # "act as" on its own is ordinary English -- "this column will act as the
+    # primary sort key" is a legitimate comment. The injection form addresses
+    # the reader directly, so the pronoun is required.
+    "you act as", "act as a", "act as an", "act as if",
 )
+
+# Substring matching over the whole script refused ordinary migrations:
+# "contract as agreed" and "redact as needed" both contain "act as", and
+# `DELETE FROM logs WHERE msg LIKE '%system prompt%'` contains "system prompt"
+# as data. Refusal is terminal, so each of those cost the user all analysis.
+#
+# Two changes fix it. Markers are matched on word boundaries, so "act as" no
+# longer fires inside "contract as". And they are matched only against comment
+# text: an instruction aimed at the reviewer lives in a comment, whereas the
+# same words in a string literal or an identifier are data.
+_MARKER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (marker, re.compile(r"\b" + r"\s+".join(map(re.escape, marker.split())) + r"\b",
+                        re.IGNORECASE))
+    for marker in INJECTION_MARKERS
+)
+
+
+def find_injection_marker(raw_sql: str) -> str | None:
+    """The first injection marker present in *raw_sql*'s comments, if any."""
+    comments = extract_comments(raw_sql)
+    for marker, pattern in _MARKER_PATTERNS:
+        if pattern.search(comments):
+            return marker
+    return None
 
 _FENCE = re.compile(r"^\s*```(?:sql)?\s*\n(.*?)\n?```\s*$", re.DOTALL)
 
@@ -184,17 +213,16 @@ def _llm(*args, **kwargs):
 
 
 def guardrail_input(state: GateState) -> dict:
-    lowered = state["raw_sql"].lower()
-    for marker in INJECTION_MARKERS:
-        if marker in lowered:
-            return {
-                "verdict": "refused",
-                "refusal_reason": (
-                    "The script contains an instruction addressed to the reviewer "
-                    f"rather than to the database ({marker!r}). Refusing to analyse it."
-                ),
-                "node_trail": ["guardrail_input"],
-            }
+    marker = find_injection_marker(state["raw_sql"])
+    if marker:
+        return {
+            "verdict": "refused",
+            "refusal_reason": (
+                "The script contains an instruction addressed to the reviewer "
+                f"rather than to the database ({marker!r}). Refusing to analyse it."
+            ),
+            "node_trail": ["guardrail_input"],
+        }
 
     try:
         answer = invoke_json(_llm(), prompts.GUARDRAIL_SYSTEM,

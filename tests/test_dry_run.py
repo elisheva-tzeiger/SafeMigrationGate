@@ -166,6 +166,16 @@ def test_unreachable_database_raises_dry_run_failure(tmp_path):
          "mssql+pyodbc://sa:***@host/db"),
         ("sqlite:///C:/data/demo.db", "sqlite:///C:/data/demo.db"),
         ("postgresql://alice@db.internal/prod", "postgresql://alice@db.internal/prod"),
+        # The lookahead anchored to the last '@' in the entire string, so a line
+        # holding two connection strings was masked across both: h1 and the
+        # whole second URL were silently destroyed.
+        ("mysql://root:pw@h1/db and postgres://bob:pw2@h2/db",
+         "mysql://root:***@h1/db and postgres://bob:***@h2/db"),
+        # Passwords outside the userinfo were missed entirely.
+        ("postgresql://u:p@h/db?password=topsecret",
+         "postgresql://u:***@h/db?password=***"),
+        ("mssql+pyodbc:///?odbc_connect=SERVER=s;UID=sa;PWD=SuperSecret;",
+         "mssql+pyodbc:///?odbc_connect=SERVER=s;UID=sa;PWD=***;"),
     ],
 )
 def test_mask_url_hides_the_password_and_nothing_else(raw, masked):
