@@ -19,8 +19,14 @@ from agent.rules import (
     overall_risk,
     run_rules,
 )
-from agent.sqlparse import ParseFailure, resolve_dialect, split_statements, to_dialect
-from agent.state import ErrorEntry, EvalResult, GateState, ImpactRow
+from agent.sqlparse import (
+    ParseFailure,
+    classify_transaction_control,
+    resolve_dialect,
+    split_statements,
+    to_dialect,
+)
+from agent.state import ErrorEntry, EvalResult, GateState, ImpactRow, Statement
 
 
 class IngestFailure(Exception):
@@ -74,9 +80,25 @@ def dry_run_impact(state: GateState) -> dict:
     dialect = state["dialect"]
     statements = state["statements"]
 
+    # Transaction control in the user's script is never executed. A COMMIT (or
+    # its END synonym) would end the dry run's transaction and make everything
+    # before it permanent -- against the user's own database when db_url is set.
+    # These statements are dropped from the executable list but kept in `impact`
+    # with rows_affected=None, so statement indices still line up with the
+    # original script. Nothing is renumbered.
+    skipped: dict[int, str] = {}
+    runnable: list[Statement] = []
+    for statement in statements:
+        is_txn, _ = classify_transaction_control(statement["text"], dialect)
+        if is_txn:
+            skipped[statement["index"]] = (
+                "transaction control is not executed during a dry run")
+        else:
+            runnable.append(statement)
+
     if db_url:
         confidence = "measured_target"
-        executable = [s["text"] for s in statements]
+        executable = [s["text"] for s in runnable]
     else:
         # The tag turns on whose database was measured, not on whether a
         # dialect translation happened. With no db_url every statement runs
@@ -86,7 +108,7 @@ def dry_run_impact(state: GateState) -> dict:
         confidence = "measured_demo_transpiled"
         try:
             executable = [to_dialect(s["text"], read=dialect, write="sqlite")
-                          for s in statements]
+                          for s in runnable]
         except Exception as exc:
             return {
                 "impact": _unverified(state, f"could not translate to sqlite: {exc}"),
@@ -105,15 +127,25 @@ def dry_run_impact(state: GateState) -> dict:
             "node_trail": ["dry_run_impact"],
         }
 
-    impact = [
-        ImpactRow(
-            statement_index=row["index"],
+    # `measured` is indexed against `runnable`; map it back onto the original
+    # statement indices and re-insert the skipped transaction-control rows.
+    by_original: dict[int, ImpactRow] = {
+        index: ImpactRow(
+            statement_index=index,
+            rows_affected=None,
+            confidence="unverified",
+            note=note,
+        )
+        for index, note in skipped.items()
+    }
+    for row, statement in zip(measured, runnable):
+        by_original[statement["index"]] = ImpactRow(
+            statement_index=statement["index"],
             rows_affected=row["rows_affected"],
             confidence="unverified" if row["error"] else confidence,
             note=row["error"] or "",
         )
-        for row in measured
-    ]
+    impact = [by_original[s["index"]] for s in statements if s["index"] in by_original]
 
     findings = apply_measured_severity(state["findings"], statements, impact)
     return {

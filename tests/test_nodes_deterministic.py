@@ -127,6 +127,34 @@ def test_a_sqlite_script_against_the_demo_is_still_not_a_target_measurement(
     assert update["impact"][0]["confidence"] == "measured_demo_transpiled"
 
 
+def test_dry_run_impact_never_executes_a_commit_from_the_script(tmp_path):
+    """A COMMIT in the user's script used to run verbatim against their own
+    database, ending the transaction and making the preceding DELETE permanent --
+    while still reporting the row count as `measured_target`."""
+    import hashlib
+
+    from agent.sqlparse import split_statements
+    from data.seed import build_demo_db
+
+    db = build_demo_db(tmp_path / "target.db", large_rows=10)
+    before = hashlib.sha256(db.read_bytes()).hexdigest()
+
+    sql = "DELETE FROM users;\nCOMMIT;\nDROP TABLE users;"
+    state = initial_state("x.sql", sql, "sqlite", f"sqlite:///{db}")
+    state["statements"] = split_statements(sql, "sqlite")
+
+    update = dry_run_impact(state)
+
+    # Indices stay aligned with the original script -- nothing is renumbered.
+    assert [r["statement_index"] for r in update["impact"]] == [0, 1, 2]
+    assert update["impact"][1]["rows_affected"] is None
+    assert "transaction control is not executed" in update["impact"][1]["note"]
+    # The statement after the COMMIT is still measured.
+    assert update["impact"][2]["confidence"] == "measured_target"
+
+    assert hashlib.sha256(db.read_bytes()).hexdigest() == before
+
+
 def test_dry_run_impact_degrades_instead_of_crashing(monkeypatch):
     """A database that cannot be reached must not stop the run. Every row becomes
     unverified and the graph carries on."""

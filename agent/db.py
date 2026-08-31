@@ -12,6 +12,18 @@ import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
+from agent.sqlparse import classify_transaction_control
+
+# SQLAlchemy dialect name -> the sqlglot dialect to parse statements as.
+_SQLGLOT_DIALECT: dict[str, str] = {
+    "sqlite": "sqlite",
+    "postgresql": "postgres",
+    "mysql": "mysql",
+    "mariadb": "mysql",
+    "mssql": "tsql",
+    "oracle": "oracle",
+}
+
 # user:password@  ->  user:***@   (the password is anything up to the last '@')
 _CREDENTIALS = re.compile(r"://([^:/@]+):(.*)@(?=[^@]*$)")
 
@@ -59,8 +71,16 @@ def dry_run_script(engine: Engine, sql_statements: list[str]) -> list[DryRunRow]
 
     One transaction, not one per statement, because the statements are dependent:
     a DELETE followed by a DROP must see the DELETE.
+
+    Transaction-control statements are never executed. A COMMIT (or its ``END``
+    synonym) in the caller's list would end the transaction we are about to roll
+    back and make every preceding statement permanent. Callers are expected to
+    filter those out, but the guarantee lives here too: this is the layer that
+    claims "measuring does not change your database", so this is the layer that
+    enforces it rather than trusting its caller to have done so.
     """
     rows: list[DryRunRow] = []
+    read_dialect = _SQLGLOT_DIALECT.get(engine.dialect.name, "sqlite")
 
     try:
         connection = engine.connect()
@@ -80,6 +100,17 @@ def dry_run_script(engine: Engine, sql_statements: list[str]) -> list[DryRunRow]
                     rows.append(DryRunRow(index=index, rows_affected=None,
                                           error="skipped after an earlier failure"))
                     continue
+
+                is_txn, _ = classify_transaction_control(statement, read_dialect)
+                if is_txn:
+                    # Not executed, on purpose. It carries no row count, and
+                    # running it would either end or restart the transaction
+                    # this whole function exists to roll back.
+                    rows.append(DryRunRow(
+                        index=index, rows_affected=None,
+                        error="transaction control is not executed during a dry run"))
+                    continue
+
                 try:
                     # exec_driver_sql, not text(): text() interprets ':name' as a
                     # bind parameter, which breaks Postgres '::' casts.

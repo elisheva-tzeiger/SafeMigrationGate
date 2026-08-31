@@ -53,6 +53,34 @@ def test_missing_rollback_breaks_the_invariant():
     assert any("ROLLBACK" in r for r in report["reasons"])
 
 
+def test_end_is_a_commit_synonym_and_breaks_the_invariant():
+    """`END` commits in SQLite and Postgres. The old regex looked for the literal
+    word COMMIT, so this script passed every check while deleting every row."""
+    bypass = "BEGIN;\nDELETE FROM users;\nEND;\nROLLBACK;"
+    report = check_invariant(bypass, STATEMENTS, "sqlite")
+    assert report["invariant_held"] is False
+
+
+def test_a_modification_after_the_rollback_breaks_the_invariant():
+    """The old tail check only looked at the *last* statement. Here the last
+    statement is a ROLLBACK, but the second DELETE runs outside any transaction
+    and persists."""
+    bypass = ("BEGIN;\nDELETE FROM users;\nROLLBACK;\n"
+              "DELETE FROM users;\nROLLBACK;")
+    report = check_invariant(bypass, STATEMENTS, "sqlite")
+    assert report["invariant_held"] is False
+    assert any("outside any open transaction" in r for r in report["reasons"])
+
+
+def test_a_commit_inside_a_string_literal_is_still_allowed():
+    """A COMMIT that is data, not an instruction, must not fail the check."""
+    ok = ("BEGIN;\n"
+          "UPDATE users SET note = 'remember to COMMIT later';\n"
+          "DELETE FROM users;\n"
+          "ROLLBACK;")
+    assert check_invariant(ok, STATEMENTS, "sqlite")["invariant_held"] is True
+
+
 def test_an_active_commit_breaks_the_invariant():
     """The whole promise is that running the output changes nothing."""
     broken = GOOD.replace("ROLLBACK;", "COMMIT;")

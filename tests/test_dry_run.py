@@ -113,6 +113,44 @@ def test_a_failing_statement_is_recorded_and_the_rest_are_skipped(demo):
     assert _fingerprint(path) == before
 
 
+def test_a_commit_in_the_script_cannot_defeat_the_rollback(demo):
+    """The bug this test exists for: sqlglot treats COMMIT as a first-class
+    statement and passed it through verbatim, so it *executed* and the outer
+    rollback had nothing left to undo. `END` and `COMMIT TRANSACTION` are COMMIT
+    synonyms and did the same. A dry run must never execute transaction control.
+    """
+    engine, path = demo
+    before = _fingerprint(path)
+
+    rows = dry_run_script(
+        engine,
+        ["DELETE FROM users", "COMMIT", "END", "COMMIT TRANSACTION", "commit"],
+    )
+
+    assert rows[0]["rows_affected"] == 5, "the DELETE is still measured"
+    for row in rows[1:]:
+        assert row["rows_affected"] is None
+        assert "transaction control is not executed" in row["error"]
+
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT COUNT(*) FROM users").scalar() == 5
+    engine.dispose()
+    assert _fingerprint(path) == before, "the database file must be byte-identical"
+
+
+def test_a_commit_does_not_make_a_following_drop_permanent(demo):
+    """`COMMIT; DROP TABLE users;` permanently dropped the table."""
+    engine, path = demo
+    before = _fingerprint(path)
+
+    dry_run_script(engine, ["DELETE FROM users", "COMMIT", "DROP TABLE users"])
+
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT COUNT(*) FROM users").scalar() == 5
+    engine.dispose()
+    assert _fingerprint(path) == before
+
+
 def test_unreachable_database_raises_dry_run_failure(tmp_path):
     engine = make_engine(f"sqlite:///{tmp_path / 'nested' / 'missing' / 'x.db'}")
     with pytest.raises(DryRunFailure):

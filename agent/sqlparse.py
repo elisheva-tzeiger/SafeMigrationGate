@@ -91,6 +91,115 @@ def _kind_of(expression: exp.Expression) -> str:
     return type(expression).__name__.upper()
 
 
+# ---------------------------------------------------------------------------
+# Transaction control
+# ---------------------------------------------------------------------------
+#
+# A dry run must never execute transaction control: a COMMIT inside the user's
+# script ends the transaction we were going to roll back, and everything before
+# it becomes permanent.
+#
+# The AST is the primary signal, but it is not sufficient on its own.  Verified
+# against sqlglot 30.17.0 across all five supported dialects:
+#
+#   'END'               -> exp.Commit  (postgres)      exp.Column  (mysql,
+#                          sqlite, oracle)             exp.Command (tsql)
+#   'END TRANSACTION'   -> exp.Commit  (postgres)      exp.Alias   (mysql,
+#                          sqlite, oracle)             exp.Command (tsql)
+#   'START TRANSACTION' -> exp.Transaction (mysql, oracle)
+#                          exp.Alias    (postgres, tsql, sqlite)
+#
+# So `END`, which is a full COMMIT synonym in SQLite, parses as a bare column
+# reference in the very dialect where it is most dangerous.  Relying on node
+# type alone is exactly the blind spot that let a COMMIT through.  We therefore
+# also normalise the statement's keyword text and match a small closed set of
+# transaction-control spellings.  This is not a regex over arbitrary SQL: it is
+# applied only after comments are stripped, and only to the leading keywords.
+
+TRANSACTION_CONTROL_KINDS: frozenset[str] = frozenset(
+    {"COMMIT", "ROLLBACK", "TRANSACTION"}
+)
+
+# Leading-keyword spellings that are transaction control regardless of how the
+# dialect happened to parse them.  Matched against the statement's collapsed,
+# comment-free, upper-cased leading words.
+_TXN_CONTROL_PHRASES: tuple[str, ...] = (
+    "COMMIT",
+    "END",
+    "ROLLBACK",
+    "BEGIN",
+    "START TRANSACTION",
+    "SAVEPOINT",
+    "RELEASE",
+)
+
+_TXN_LEADING_WORDS = re.compile(r"^\s*([A-Za-z]+(?:\s+[A-Za-z]+)?)")
+
+
+def _leading_keywords(sql: str) -> str:
+    """The first one or two bare words of *sql*, comment-free and upper-cased."""
+    match = _TXN_LEADING_WORDS.match(strip_comments(sql).strip())
+    return re.sub(r"\s+", " ", match.group(1)).upper() if match else ""
+
+
+def is_transaction_control(expression: exp.Expression | None, text: str) -> bool:
+    """True if *text* / *expression* is a transaction-control statement.
+
+    Checks the parsed node type first, then falls back to the leading keywords
+    for the spellings that degenerate into ``Column`` / ``Alias`` / ``Command``
+    in some dialects (notably SQLite's ``END``).
+    """
+    if expression is not None and isinstance(
+        expression, (exp.Commit, exp.Rollback, exp.Transaction)
+    ):
+        return True
+
+    words = _leading_keywords(text)
+    if not words:
+        return False
+    first = words.split(" ")[0]
+    return words in _TXN_CONTROL_PHRASES or first in _TXN_CONTROL_PHRASES
+
+
+def is_commit_like(expression: exp.Expression | None, text: str) -> bool:
+    """True if the statement makes pending work permanent.
+
+    ``COMMIT``, ``COMMIT TRANSACTION``, ``COMMIT WORK``, and ``END`` / ``END
+    TRANSACTION`` — which are COMMIT synonyms in SQLite and Postgres — all
+    qualify.  ``RELEASE [SAVEPOINT]`` commits a savepoint, so it counts too.
+    """
+    if expression is not None and isinstance(expression, exp.Commit):
+        return True
+
+    words = _leading_keywords(text)
+    if not words:
+        return False
+    return words.split(" ")[0] in {"COMMIT", "END", "RELEASE"}
+
+
+def statement_kind(text: str, dialect: str) -> str:
+    """The parsed kind of a single statement, or '' if it does not parse."""
+    try:
+        expression = sqlglot.parse_one(text, read=dialect)
+    except Exception:
+        return ""
+    return _kind_of(expression) if expression is not None else ""
+
+
+def classify_transaction_control(text: str, dialect: str) -> tuple[bool, bool]:
+    """Parse *text* in *dialect* and report (is_transaction_control, is_commit_like).
+
+    Parsing is best-effort: an unparseable segment still gets the keyword check,
+    because a statement we cannot parse is not a statement we may assume is safe.
+    """
+    try:
+        expression = sqlglot.parse_one(text, read=dialect)
+    except Exception:
+        expression = None
+    return (is_transaction_control(expression, text),
+            is_commit_like(expression, text))
+
+
 def _raw_segments(sql: str) -> list[str]:
     """Split on ';' while keeping each segment's original spelling.
 
@@ -156,6 +265,10 @@ def _raw_segments(sql: str) -> list[str]:
     segments.append("".join(buffer))
     # Filter segments that contain nothing but whitespace and comments.
     return [s for s in segments if strip_comments(s).strip()]
+
+
+#: Public name for the statement splitter, used by agent.rewrite.
+split_segments = _raw_segments
 
 
 def split_statements(sql: str, dialect: str) -> list[Statement]:

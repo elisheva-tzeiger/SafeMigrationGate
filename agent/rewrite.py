@@ -11,7 +11,12 @@ from typing import TypedDict
 
 import sqlglot
 
-from agent.sqlparse import strip_comments
+from agent.sqlparse import (
+    classify_transaction_control,
+    split_segments,
+    statement_kind,
+    strip_comments,
+)
 from agent.state import EvalResult, Statement
 
 # A block comment, not `<-- ... -->`: the latter parses as a `<` operator followed
@@ -62,6 +67,80 @@ def _executable_text(sql: str) -> str:
     return _STRING_LITERAL.sub("''", strip_comments(sql))
 
 
+# Statement kinds that change data or schema. A safe script may contain these
+# only inside a transaction that is rolled back.
+_MODIFYING_KINDS: frozenset[str] = frozenset({
+    "DELETE", "UPDATE", "INSERT", "DROP", "TRUNCATE", "ALTER", "CREATE",
+    "GRANT", "REVOKE", "MERGE",
+})
+
+
+def _check_rollback_invariant(safe_sql: str, dialect: str) -> tuple[bool, list[str]]:
+    """Enforce the real invariant: running safe_sql as-is changes nothing.
+
+    "Ends with ROLLBACK" is not that invariant. It is satisfied by a script whose
+    *last* statement is a ROLLBACK while an earlier statement already ran outside
+    any transaction and persisted. So instead of looking at the tail, walk the
+    statements in order and track transaction depth:
+
+      * a data-modifying statement at depth 0 has nothing to roll it back;
+      * a COMMIT (or its END synonym) makes everything before it permanent;
+      * the script must not end with modifications still pending in an open
+        transaction that was never rolled back.
+
+    Comments and string literals are removed first, so a COMMIT that is merely
+    *mentioned* in a comment or held in a string literal is still allowed.
+    """
+    reasons: list[str] = []
+    executable = _executable_text(safe_sql)
+
+    depth = 0
+    modified_in_open_transaction = False
+
+    for segment in split_segments(executable):
+        text = segment.strip()
+        if not text:
+            continue
+
+        is_txn, is_commit = classify_transaction_control(text, dialect)
+
+        if is_commit:
+            # COMMIT / END / RELEASE — makes pending work permanent.
+            reasons.append(
+                "safe_sql contains an uncommented COMMIT (or its END synonym), "
+                "which would make the preceding statements permanent")
+            return False, reasons
+
+        if is_txn:
+            words = text.split()
+            first = words[0].upper() if words else ""
+            if first in {"BEGIN", "START"}:
+                depth += 1
+            elif first == "ROLLBACK":
+                # A ROLLBACK undoes everything back to the matching BEGIN.
+                depth = max(0, depth - 1)
+                if depth == 0:
+                    modified_in_open_transaction = False
+            continue
+
+        kind = statement_kind(text, dialect)
+        if kind in _MODIFYING_KINDS:
+            if depth == 0:
+                reasons.append(
+                    "safe_sql modifies data outside any open transaction, so no "
+                    f"ROLLBACK can undo it: {text.strip()[:120]}")
+                return False, reasons
+            modified_in_open_transaction = True
+
+    if depth > 0 and modified_in_open_transaction:
+        reasons.append(
+            "safe_sql leaves a transaction open with pending modifications and "
+            "no ROLLBACK to undo them")
+        return False, reasons
+
+    return True, reasons
+
+
 def check_invariant(
     safe_sql: str, statements: list[Statement], dialect: str
 ) -> InvariantReport:
@@ -89,17 +168,8 @@ def check_invariant(
         reasons.append(f"the original statement is missing from safe_sql: {text}")
 
     # 3. the invariant
-    executable = _executable_text(safe_sql)
-    invariant_held = True
-
-    if re.search(r"\bCOMMIT\b", executable, re.IGNORECASE):
-        invariant_held = False
-        reasons.append("safe_sql contains an uncommented COMMIT")
-
-    tail = [t for t in re.split(r";", executable) if t.strip()]
-    if not tail or not re.match(r"^\s*ROLLBACK\s*$", tail[-1], re.IGNORECASE):
-        invariant_held = False
-        reasons.append("safe_sql does not end with ROLLBACK as its last statement")
+    invariant_held, invariant_reasons = _check_rollback_invariant(safe_sql, dialect)
+    reasons.extend(invariant_reasons)
 
     return InvariantReport(validity=validity, no_omissions=no_omissions,
                            invariant_held=invariant_held, reasons=reasons)
