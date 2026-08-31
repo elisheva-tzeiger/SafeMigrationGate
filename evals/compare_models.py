@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import csv
 import json
-import sys
 import time
 from pathlib import Path
 
@@ -29,7 +28,6 @@ from langgraph.types import Command
 from agent.graph import build_graph
 from agent.llm import invoke_json, make_llm
 from agent.rewrite import check_invariant
-from agent.sqlparse import resolve_dialect, split_statements
 from agent.state import initial_state
 from evals.model_registry import fetch_catalogue, load_config, verify_models
 
