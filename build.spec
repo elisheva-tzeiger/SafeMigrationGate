@@ -6,7 +6,10 @@ Build with:  pyinstaller build.spec --noconfirm
 Three traps handled here:
   1. Bundled resources are resolved through agent.resources.resource_path, which
      reads sys._MEIPASS. The `datas` paths below must match the strings passed to
-     resource_path exactly ("agent/knowledge", "data/demo.db", "evals/rubric.md").
+     resource_path exactly ("agent/knowledge", "data/demo.db"). The rubric
+     (evals/rubric.md) is bundled for completeness but is not resolved through
+     resource_path; eval scripts read it directly from the source tree via
+     Path("evals/rubric.md").
   2. SQLite opens a journal even for a transaction that only rolls back, and the
      bundle directory is read-only. ensure_demo_db() copies the database to
      %LOCALAPPDATA%\\SafeMigrationGate on first run; nothing to do here.

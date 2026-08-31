@@ -22,7 +22,7 @@ def test_the_dynamically_loaded_modules_are_declared():
 
 
 def test_it_builds_one_file():
-    assert "onefile" in SPEC.lower() or "EXE(" in SPEC
+    assert "onefile" in SPEC.lower()
 
 
 def test_the_entry_point_is_the_dual_mode_launcher():
