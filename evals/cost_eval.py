@@ -36,11 +36,20 @@ TASKS = ["01_delete_no_where.sql", "03_tautological_where.sql",
 
 
 class NodeUsageCollector(BaseCallbackHandler):
-    """Attributes token usage to the run_name each node passes to with_config."""
+    """Attributes token usage to the run_name each node passes to with_config.
+
+    Implementation note: in langchain-core, ``on_llm_end`` does **not** receive
+    ``name`` or ``metadata`` in its ``**kwargs`` — those keys are absent from the
+    signature.  The ``name`` kwarg *is* present in ``on_chat_model_start``, so we
+    capture the ``run_id → name`` mapping there and look it up in ``on_llm_end``
+    using the matching ``run_id``.  (Measured with a FakeListChatModel probe on
+    langchain-core 1.6.0; see probe_attribution.py in the task-17 report.)
+    """
 
     def __init__(self) -> None:
         self.usage: dict[str, dict[str, int]] = defaultdict(
             lambda: {"prompt_tokens": 0, "completion_tokens": 0})
+        self._run_name_by_id: dict[str, str] = {}
 
     def record(self, node: str | None, prompt_tokens: int,
                completion_tokens: int) -> None:
@@ -48,9 +57,17 @@ class NodeUsageCollector(BaseCallbackHandler):
         bucket["prompt_tokens"] += prompt_tokens
         bucket["completion_tokens"] += completion_tokens
 
+    def on_chat_model_start(  # noqa: D102
+            self, serialized: dict, messages: list, **kwargs: object) -> None:
+        run_id = kwargs.get("run_id")
+        name = kwargs.get("name")
+        if run_id and name:
+            self._run_name_by_id[str(run_id)] = str(name)
+
     def on_llm_end(self, response, **kwargs) -> None:  # noqa: ANN001, D102
-        name = (kwargs.get("name")
-                or (kwargs.get("metadata") or {}).get("run_name"))
+        # ``name`` is NOT in on_llm_end kwargs; look it up via run_id captured
+        # in on_chat_model_start above.
+        name = self._run_name_by_id.get(str(kwargs.get("run_id", "")))
         usage = (response.llm_output or {}).get("token_usage") or {}
         if not usage:
             for generations in response.generations:

@@ -1,4 +1,5 @@
 import pytest
+from langchain_core.language_models import FakeListChatModel
 
 from evals.cost_eval import CSV_COLUMNS, NodeUsageCollector, cost_for
 
@@ -52,3 +53,27 @@ def test_compare_models_run_fixture_populates_token_columns():
     totals = collector.totals()
     assert totals["prompt_tokens"] == 300
     assert totals["completion_tokens"] == 70
+
+
+def test_node_attribution_via_fake_llm():
+    """Regression: on_llm_end does not receive 'name' in kwargs (langchain-core
+    1.6.0+).  NodeUsageCollector must capture it in on_chat_model_start and look
+    it up by run_id.  A FakeListChatModel driven with .with_config(run_name=...)
+    must land in the named bucket, not '(unnamed)'."""
+    collector = NodeUsageCollector()
+    llm = FakeListChatModel(responses=["ok"])
+    llm.with_config(run_name="classify_risk").invoke(
+        "probe",
+        config={"callbacks": [collector]},
+    )
+    # The usage must be in the named bucket, not the fallback.
+    assert "classify_risk" in collector.usage, (
+        f"Expected 'classify_risk' bucket; got buckets: {list(collector.usage)}"
+    )
+    assert "(unnamed)" not in collector.usage, (
+        "Attribution fell back to '(unnamed)' — run_name was not captured"
+    )
+    # FakeListChatModel does not populate usage metadata, so token counts are 0;
+    # the bucket name is what we are pinning here.
+    assert collector.usage["classify_risk"]["prompt_tokens"] == 0
+    assert collector.usage["classify_risk"]["completion_tokens"] == 0
