@@ -29,6 +29,7 @@ from agent.graph import build_graph
 from agent.llm import invoke_json, make_llm
 from agent.rewrite import check_invariant
 from agent.state import initial_state
+from evals.cost_eval import NodeUsageCollector
 from evals.model_registry import fetch_catalogue, load_config, verify_models
 
 FIXTURES = Path("evals/fixtures")
@@ -107,13 +108,22 @@ def judge_one(judge_llm, rubric: str, fixture_name: str,
     return scores
 
 
-def run_fixture(model: str, fixture_path: Path) -> tuple[dict, float]:
-    """Run the whole graph on one fixture, auto-approving both HITL gates."""
+def run_fixture(model: str, fixture_path: Path) -> tuple[dict, float, dict]:
+    """Run the whole graph on one fixture, auto-approving both HITL gates.
+
+    Returns (final_state, elapsed_seconds, token_totals) where token_totals is
+    ``{"prompt_tokens": int, "completion_tokens": int}``.  The collector is
+    attached at the TOP level of the config (not inside ``configurable``) so
+    that LangChain actually delivers callback events — Amendment 1.
+    """
     import os
 
     os.environ["SMG_MODEL"] = model
     graph = build_graph(checkpointer=MemorySaver())
-    config = {"configurable": {"thread_id": f"{model}:{fixture_path.name}"}}
+    collector = NodeUsageCollector()
+    # Amendment 1: callbacks at the top level of config, not inside configurable.
+    config = {"configurable": {"thread_id": f"{model}:{fixture_path.name}"},
+              "callbacks": [collector]}
 
     started = time.monotonic()
     list(graph.stream(initial_state(str(fixture_path), "", "", None),
@@ -123,7 +133,7 @@ def run_fixture(model: str, fixture_path: Path) -> tuple[dict, float]:
                           stream_mode="updates"))
     elapsed = time.monotonic() - started
 
-    return graph.get_state(config).values, elapsed
+    return graph.get_state(config).values, elapsed, collector.totals()
 
 
 def main() -> int:
@@ -153,8 +163,10 @@ def main() -> int:
                 row = {c: "" for c in CSV_COLUMNS}
                 row["model"], row["fixture"] = model, name
                 try:
-                    final, elapsed = run_fixture(model, FIXTURES / name)
+                    final, elapsed, token_totals = run_fixture(model, FIXTURES / name)
                     row["wall_clock_s"] = round(elapsed, 2)
+                    row["prompt_tokens"] = token_totals["prompt_tokens"]
+                    row["completion_tokens"] = token_totals["completion_tokens"]
 
                     if gt.get("refused"):
                         # Controller amendment: score on refusal, not rule recall.
