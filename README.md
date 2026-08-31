@@ -33,7 +33,7 @@ a risk report. Whether to execute them is your decision.
 
 ## Architecture
 
-The pipeline is a LangGraph `StateGraph` with nine nodes and two human-in-the-loop approval gates. Every node reads from and writes to `GateState`; nodes never communicate directly.
+The pipeline is a LangGraph `StateGraph` with twelve nodes: nine that do the work, two human-in-the-loop approval gates (`approve_dry_run`, `approve_write`), and one skip path (`skip_dry_run`). Every node reads from and writes to `GateState`; nodes never communicate directly.
 
 ```
 START
@@ -209,8 +209,9 @@ cp .env.example .env
 # edit .env and set OPENROUTER_API_KEY=sk-or-...
 ```
 
-**Rebuild the demo database** (already included in the repo, rebuild only if
-you need to reset it):
+**Build the demo database** (`data/demo.db` is not tracked in the repository
+— it must be created before first use; run this again any time you need to
+reset it):
 
 ```sh
 .venv\Scripts\python.exe -m data.seed   # Windows
@@ -274,6 +275,12 @@ All three evals require `OPENROUTER_API_KEY` and network access to
 Runs the complete pipeline on seven fixtures with each of the four configured
 models, scores the output with a LLM judge and deterministic ground-truth
 metrics (rule recall, rule precision, invariant held).
+
+> **Note on model lists:** `manifest.json` lists three `supported_models` —
+> the models recommended for general use. `evals/models.yaml` lists four
+> candidates; the extra entry (`qwen/qwen3-235b-a22b:free`) is included in
+> Eval 1 for comparison purposes only and is not in the recommended set.
+> The manifest test asserts a subset relationship, not equality.
 
 ```sh
 .venv\Scripts\python.exe -m evals.compare_models
@@ -347,7 +354,7 @@ host is blocked at the network level — work with your network administrator or
 use a device outside the inspecting proxy.
 
 The three evals require a reachable `openrouter.ai`. The offline test suite
-(270 tests) runs entirely without network access using `FakeListChatModel`.
+(277 tests) runs entirely without network access using `FakeListChatModel`.
 
 ---
 
@@ -430,7 +437,7 @@ SafeMigrationGate/
 │   └── resources.py      # file I/O and resource paths (PyInstaller-safe)
 ├── data/
 │   ├── seed.py           # builds data/demo.db
-│   └── demo.db           # bundled demo database (gitignored after build)
+│   └── demo.db           # demo database — not tracked; create with python -m data.seed
 ├── evals/
 │   ├── models.yaml       # candidate models and judge
 │   ├── compare_models.py # Eval 1: model comparison
@@ -438,7 +445,7 @@ SafeMigrationGate/
 │   ├── scope_eval.py     # Eval 3: scope / refusal
 │   ├── fixtures/         # SQL scripts + ground_truth.json
 │   └── results/          # CSV output (gitignored)
-├── tests/                # 270 tests, 2 skipped (network-only)
+├── tests/                # 277 tests, 2 skipped (network-only)
 ├── .env.example
 ├── manifest.json
 ├── requirements.txt
@@ -483,5 +490,5 @@ approving files they had not yet seen.
 .venv/bin/python -m pytest                  # macOS / Linux
 ```
 
-Expected: **270 passed, 2 skipped** (the 2 skipped tests are marked
+Expected: **277 passed, 2 skipped** (the 2 skipped tests are marked
 `@pytest.mark.network` and require `openrouter.ai`).
