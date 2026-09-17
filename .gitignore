@@ -18,3 +18,7 @@ dist/
 # מצב מקומי של הכלים — לא חלק מהפרויקט
 .superpowers/
 .claude/settings.local.json
+
+# לוגים של הרצות בדיקה — נוצרים בהפניית פלט, לא חלק מהפרויקט
+test_output.txt
+*_output.txt
