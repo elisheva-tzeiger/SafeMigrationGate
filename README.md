@@ -191,7 +191,7 @@ SG013 fires only after a dry run measures more than 100,000 affected rows.
 **Prerequisites:** Python 3.10 or later, `pip`.
 
 ```sh
-git clone https://github.com/<REPLACE_WITH_ORG_OR_USER>/SafeMigrationGate
+git clone https://github.com/elisheva-tzeiger/SafeMigrationGate
 cd SafeMigrationGate
 python -m venv .venv
 

@@ -5,8 +5,8 @@
   "creator_name": "Elisheva Schlissel",
   "contact_information": "elishevas@aman.co.il",
   "release_date": "2026-08-30",
-  "repository_url": "https://github.com/<REPLACE_WITH_ORG_OR_USER>/SafeMigrationGate",
-  "download_url": "https://github.com/<REPLACE_WITH_ORG_OR_USER>/SafeMigrationGate/releases/download/v1.0.0/agent.exe",
+  "repository_url": "https://github.com/elisheva-tzeiger/SafeMigrationGate",
+  "download_url": "https://github.com/elisheva-tzeiger/SafeMigrationGate/releases/download/v1.0.0/agent.exe",
   "target_audience": "Database Administrators, Backend Engineers, DevOps and SRE teams",
   "professional_fields": [
     "Database Administration",
