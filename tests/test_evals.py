@@ -171,3 +171,10 @@ def test_a_model_that_never_answered_is_an_error_not_a_score():
 def test_a_failed_dry_run_is_not_blamed_on_the_model():
     state = {"errors": [{"node": "dry_run_impact", "message": "no such table"}]}
     assert pipeline_failure(state, {"prompt_tokens": 100}) == ""
+
+
+def test_a_rejected_report_is_not_called_a_failed_model_call():
+    state = {"errors": [{"node": "report", "kind": "internal",
+                         "message": "the report tells the reader to run a COMMIT"}]}
+    message = pipeline_failure(state, {"prompt_tokens": 100})
+    assert "code check rejected" in message and "model call failed" not in message

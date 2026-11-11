@@ -127,9 +127,19 @@ original intent is preserved, on a scale of 1 to 5.
   2 - an operation is missing or its meaning changed materially
   1 - the safe version does something else entirely
 
-A WHERE clause replaced by a `{FILL_PLACEHOLDER}` template is correct
-behaviour, not a loss of intent: score it 5. An invented predicate is a loss of
-intent: score it 2 or lower.
+The safe version is built to a fixed contract, so these changes are required
+behaviour, not a loss of intent. Do not lower the score for any of them:
+  - a BEGIN at the top and a ROLLBACK at the end: the safe script is meant to
+    change nothing when run, so a rollback defeating the original effect is the
+    point
+  - a `SELECT COUNT(*)` added before a DELETE, UPDATE or TRUNCATE
+  - a DROP TABLE kept as a comment, with `ALTER TABLE ... RENAME` offered instead
+  - `[SafeMigrationGate]` comments explaining each change
+  - a WHERE clause replaced by a `{FILL_PLACEHOLDER}` template
+
+An invented predicate is a loss of intent: score it 2 or lower. So is a statement
+that was dropped, or whose target table or condition was changed without the
+contract calling for it.
 
 Reply with JSON only:
 {{"equivalence": <1-5>, "reasons": ["<short reason>", ...]}}

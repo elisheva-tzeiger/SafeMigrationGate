@@ -132,7 +132,11 @@ def pipeline_failure(final_state: dict, token_totals: dict) -> str:
               if e["node"] != "dry_run_impact"]   # that one is the database's
     if errors:
         first = errors[0]
-        return f"model call failed in {first['node']}: {first['message']}"[:300]
+        # a provider error is the infrastructure's fault; anything else is a code
+        # check rejecting what the model wrote, which is the model's result
+        what = ("model call failed in" if first.get("kind", "provider") == "provider"
+                else "a code check rejected the output of")
+        return f"{what} {first['node']}: {first['message']}"[:300]
     # A refusal from the deterministic injection check never calls a model, so
     # zero tokens is the correct reading there, not a failure.
     if not token_totals["prompt_tokens"] and final_state.get("verdict") != "refused":
