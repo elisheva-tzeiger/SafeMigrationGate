@@ -107,6 +107,9 @@ def _run(model: str, fixture: Path, collector: NodeUsageCollector) -> None:
 
 
 def main() -> int:
+    from dotenv import load_dotenv
+
+    load_dotenv()
     config = load_config()
     catalogue = fetch_catalogue()
     models = [m for m in config["candidates"] if m in catalogue]
@@ -124,7 +127,9 @@ def main() -> int:
 
         for model in models:
             prices = price_per_token(model, catalogue)
-            twin = equivalent_paid_model(model, catalogue)
+            twin = (equivalent_paid_model(model, catalogue)
+                    or (config.get("theoretical_reference")
+                        if model.endswith(":free") else None))
             theoretical_prices = (price_per_token(twin, catalogue) if twin
                                   else prices)
 
@@ -132,6 +137,9 @@ def main() -> int:
                 collector = NodeUsageCollector()
                 try:
                     _run(model, FIXTURES / name, collector)
+                    if not collector.totals()["prompt_tokens"]:
+                        raise RuntimeError("model returned no usage - "
+                                           "it never answered, so no cost to report")
                 except Exception as exc:  # noqa: BLE001
                     print(f"  {model} / {name}: {exc}")
                     continue

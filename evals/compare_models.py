@@ -120,6 +120,26 @@ def judge_one(judge_llm, rubric: str, fixture_name: str,
     return scores
 
 
+def pipeline_failure(final_state: dict, token_totals: dict) -> str:
+    """Why a run is not a valid measurement of the model, or "" if it is.
+
+    A model that never answered (rate limit, 404, no credit) makes the pipeline
+    degrade quietly: the guardrail refuses an input it could not vet, no rules are
+    found, and the row would otherwise read as a model that performed badly. That
+    is an infrastructure failure, not a result, so it is reported as an error.
+    """
+    errors = [e for e in final_state.get("errors") or []
+              if e["node"] != "dry_run_impact"]   # that one is the database's
+    if errors:
+        first = errors[0]
+        return f"model call failed in {first['node']}: {first['message']}"[:300]
+    # A refusal from the deterministic injection check never calls a model, so
+    # zero tokens is the correct reading there, not a failure.
+    if not token_totals["prompt_tokens"] and final_state.get("verdict") != "refused":
+        return "model returned no usage - it never answered"
+    return ""
+
+
 def run_fixture(model: str, fixture_path: Path) -> tuple[dict, float, dict]:
     """Run the whole graph on one fixture, auto-approving both HITL gates.
 
@@ -149,6 +169,9 @@ def run_fixture(model: str, fixture_path: Path) -> tuple[dict, float, dict]:
 
 
 def main() -> int:
+    from dotenv import load_dotenv
+
+    load_dotenv()
     config = load_config()
     catalogue = fetch_catalogue()
     available, missing = verify_models(config["candidates"], catalogue)
@@ -179,6 +202,13 @@ def main() -> int:
                     row["wall_clock_s"] = round(elapsed, 2)
                     row["prompt_tokens"] = token_totals["prompt_tokens"]
                     row["completion_tokens"] = token_totals["completion_tokens"]
+
+                    failure = pipeline_failure(final, token_totals)
+                    if failure:
+                        row["error"] = failure
+                        writer.writerow(row)
+                        print(f"  {model} / {name}: {failure}")
+                        continue
 
                     if gt.get("refused"):
                         # Controller amendment: score on refusal, not rule recall.

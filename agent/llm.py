@@ -18,7 +18,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from agent.db import mask_url
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
+DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 
 # `\bsk-[A-Za-z0-9_\-]{8,}` also matched ordinary prose beginning "sk-", so a
 # sentence mentioning "sk-learning-curve" came out redacted. Two properties

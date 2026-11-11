@@ -266,12 +266,14 @@ Evals 1 and 2 require `OPENROUTER_API_KEY` and network access to
 and can be run today, offline (see its section below). Results are written to
 `evals/results/`.
 
-> **Note:** As of the v1.0.0 release, `openrouter.ai` was unreachable on
-> the development network (TLS inspection by a corporate proxy). The code and
-> its offline tests are complete. **Evals 1 and 2 have not been performed** —
-> their CSV files do not contain live results. Do not treat any numbers quoted
-> in a demo context as production measurements. Eval 3 is unaffected, because
-> it never calls a model.
+> **Status of the results (November 2026).** All three evals have been run
+> against OpenRouter. The paid models (`gpt-4o-mini`, `claude-haiku-4.5`,
+> `claude-sonnet-4.5`) have complete results. The free model
+> (`nvidia/nemotron-3-ultra-550b-a55b:free`) is blocked by OpenRouter's daily
+> free-tier quota (HTTP 429) once the quota is spent, so its rows are recorded
+> as errors in the `error` column rather than as scores. A model that never
+> answers is an infrastructure failure, not a measurement, and the eval says so.
+> Re-run after the quota resets, or with credits on the account, to fill them in.
 
 ### Eval 1 — model comparison (`evals/results/compare_models.csv`)
 
@@ -281,7 +283,7 @@ metrics (rule recall, rule precision, invariant held).
 
 > **Note on model lists:** `manifest.json` lists three `supported_models` —
 > the models recommended for general use. `evals/models.yaml` lists four
-> candidates; the extra entry (`qwen/qwen3-235b-a22b:free`) is included in
+> candidates; the extra entry (`anthropic/claude-haiku-4.5`) is included in
 > Eval 1 for comparison purposes only and is not in the recommended set.
 > The manifest test asserts a subset relationship, not equality.
 
@@ -370,7 +372,7 @@ host is blocked at the network level — work with your network administrator or
 use a device outside the inspecting proxy.
 
 Evals 1 and 2 require a reachable `openrouter.ai`; Eval 3 does not. The offline
-test suite (307 tests) runs entirely without network access using
+test suite (309 tests) runs entirely without network access using
 `FakeListChatModel`.
 
 ---
@@ -481,7 +483,7 @@ SafeMigrationGate/
 │   ├── scope_eval.py     # Eval 3: scope / refusal
 │   ├── fixtures/         # SQL scripts + ground_truth.json
 │   └── results/          # CSV output (gitignored)
-├── tests/                # 307 tests, 2 skipped (network-only)
+├── tests/                # 309 tests, 2 skipped (network-only)
 ├── .env.example
 ├── manifest.json
 ├── requirements.txt
@@ -526,5 +528,5 @@ approving files they had not yet seen.
 .venv/bin/python -m pytest                  # macOS / Linux
 ```
 
-Expected: **307 passed, 2 skipped** (the 2 skipped tests are marked
+Expected: **309 passed, 2 skipped** (the 2 skipped tests are marked
 `@pytest.mark.network` and require `openrouter.ai`).

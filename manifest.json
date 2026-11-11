@@ -29,8 +29,8 @@
     "llm_provider": "OpenRouter",
     "supported_models": [
       "anthropic/claude-sonnet-4.5",
-      "deepseek/deepseek-chat-v3-0324:free",
-      "meta-llama/llama-3.3-70b-instruct:free"
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "openai/gpt-4o-mini"
     ],
     "features_enabled": {
       "rag": true,

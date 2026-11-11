@@ -8,7 +8,6 @@ __pycache__/
 
 # תוצרי ריצה
 data/*.db
-evals/results/*.csv
 build/
 dist/
 
@@ -22,3 +21,7 @@ dist/
 # לוגים של הרצות בדיקה — נוצרים בהפניית פלט, לא חלק מהפרויקט
 test_output.txt
 *_output.txt
+
+# הפלט שהאייג'נט כותב ליד קובצי הבדיקה בזמן הרצת evals
+evals/fixtures/*_safe.sql
+evals/fixtures/*_report.md

@@ -1,11 +1,15 @@
 # Eval 1 compares these. Verified against /api/v1/models at run time; any id that
 # is no longer served is reported and skipped rather than silently failing.
 candidates:
-  - deepseek/deepseek-chat-v3-0324:free
-  - meta-llama/llama-3.3-70b-instruct:free
-  - qwen/qwen3-235b-a22b:free
+  - nvidia/nemotron-3-ultra-550b-a55b:free
+  - openai/gpt-4o-mini
+  - anthropic/claude-haiku-4.5
   - anthropic/claude-sonnet-4.5      # the paid model the brief requires
 
 # One fixed judge for every comparison. A judge that changes between runs makes
 # the scores incomparable; a weak judge is what poisons an eval fastest.
 judge: anthropic/claude-sonnet-4.5
+
+# Free models have no paid twin in the catalogue any more, so Eval 2's theoretical
+# cost prices their tokens at this paid model's rate instead.
+theoretical_reference: deepseek/deepseek-chat-v3-0324

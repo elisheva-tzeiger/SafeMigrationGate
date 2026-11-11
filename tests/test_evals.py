@@ -1,6 +1,6 @@
 import pytest
 
-from evals.compare_models import CSV_COLUMNS, deterministic_metrics
+from evals.compare_models import CSV_COLUMNS, deterministic_metrics, pipeline_failure
 from evals.model_registry import load_config, verify_models
 
 
@@ -156,3 +156,18 @@ def test_the_catalogue_is_reachable_and_lists_our_candidates():
     assert len(catalogue) > 50
     available, missing = verify_models(load_config()["candidates"], catalogue)
     assert available, f"none of the configured models are served; missing={missing}"
+
+
+def test_a_model_that_never_answered_is_an_error_not_a_score():
+    state = {"errors": [{"node": "guardrail_input", "message": "429 rate limit"}]}
+    assert "guardrail_input" in pipeline_failure(state, {"prompt_tokens": 0})
+    assert pipeline_failure({"errors": []}, {"prompt_tokens": 0}) != ""
+    # the deterministic injection refusal calls no model; zero tokens is correct
+    assert pipeline_failure({"errors": [], "verdict": "refused"},
+                            {"prompt_tokens": 0}) == ""
+    assert pipeline_failure({"errors": []}, {"prompt_tokens": 100}) == ""
+
+
+def test_a_failed_dry_run_is_not_blamed_on_the_model():
+    state = {"errors": [{"node": "dry_run_impact", "message": "no such table"}]}
+    assert pipeline_failure(state, {"prompt_tokens": 100}) == ""
