@@ -319,6 +319,8 @@ def evaluate(state: GateState) -> dict:
             prompts.equivalence_user(state["raw_sql"], safe_sql),
             run_name="evaluate")
         equivalence = int(answer.get("equivalence", 0))
+        if not 1 <= equivalence <= 5:
+            raise ValueError(f"equivalence score {equivalence} is outside 1-5")
         report_["reasons"].extend(str(r) for r in (answer.get("reasons") or []))
         result = to_eval_result(report_, equivalence)
         errors: list[ErrorEntry] = []
@@ -327,10 +329,11 @@ def evaluate(state: GateState) -> dict:
         # decide on their own. Looping three times against a dead provider would
         # cost time and change nothing.
         report_["reasons"].append("semantic equivalence was not scored: the model "
-                                  "was unavailable")
+                                  "was unavailable or returned an unusable score")
         result = EvalResult(
             passed=(report_["validity"] and report_["no_omissions"]
-                    and report_["invariant_held"]),
+                    and report_["invariant_held"]
+                    and report_["contract_followed"]),
             equivalence=0, validity=report_["validity"],
             reasons=list(report_["reasons"]))
         errors = [ErrorEntry(node="evaluate", kind="provider", message=str(exc))]
@@ -376,6 +379,38 @@ def render_report_fallback(state: GateState) -> str:
     return "\n".join(lines)
 
 
+_COMMIT_STATEMENT = re.compile(r"\bCOMMIT\s*;", re.IGNORECASE)
+_ROWS_CLAIM = re.compile(r"(\d[\d,]*)\s+rows?\b", re.IGNORECASE)
+
+
+def validate_report(markdown: str, impact: list[ImpactRow]) -> list[str]:
+    """Check what the model wrote against what the code knows.
+
+    The report is free text from a model, so the two promises the tool makes in
+    its README -- it never commits, and every number was measured -- are checked
+    here rather than trusted to the prompt. Returns the problems found; empty
+    means the report may be shown.
+    """
+    problems: list[str] = []
+
+    if _COMMIT_STATEMENT.search(markdown):
+        problems.append("the report tells the reader to run a COMMIT")
+
+    measured = {r["rows_affected"] for r in impact
+                if r["rows_affected"] is not None
+                and r["confidence"] != "unverified"}
+    for claim in _ROWS_CLAIM.findall(markdown):
+        number = int(claim.replace(",", ""))
+        if number not in measured:
+            problems.append(f"the report states {number:,} rows, which was "
+                            "never measured")
+    for number in measured:
+        if f"{number:,}" not in markdown and str(number) not in markdown:
+            problems.append(f"the measured count {number:,} is missing "
+                            "from the report")
+    return problems
+
+
 def report(state: GateState) -> dict:
     if state.get("verdict") == "refused":
         return {"report_md": render_report_fallback(state), "node_trail": ["report"]}
@@ -394,6 +429,16 @@ def report(state: GateState) -> dict:
         return {
             "report_md": render_report_fallback(state),
             "errors": [ErrorEntry(node="report", kind="provider", message=str(exc))],
+            "node_trail": ["report"],
+        }
+
+    problems = validate_report(markdown, state.get("impact") or [])
+    if problems:
+        # A report that contradicts the measurements is worse than a plain one.
+        return {
+            "report_md": render_report_fallback(state),
+            "errors": [ErrorEntry(node="report", kind="internal",
+                                  message="; ".join(problems))],
             "node_trail": ["report"],
         }
 

@@ -155,7 +155,7 @@ def test_classify_risk_never_changes_blocked(fake):
 
 # --- rewrite_safe -------------------------------------------------------------
 
-SAFE = "BEGIN;\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n"
+SAFE = "BEGIN;\n-- [SafeMigrationGate] SG001: neutralised.\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n"
 
 
 def test_rewrite_safe_returns_the_model_output_and_counts_the_attempt(fake):

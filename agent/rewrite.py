@@ -52,7 +52,43 @@ class InvariantReport(TypedDict):
     validity: bool
     no_omissions: bool
     invariant_held: bool
+    contract_followed: bool
     reasons: list[str]
+
+
+_COUNT_SELECT = re.compile(r"^\s*select\s+count\s*\(", re.IGNORECASE)
+_MARKER = "[SafeMigrationGate]"
+_COUNTED_KINDS = frozenset({"DELETE", "UPDATE", "TRUNCATE"})
+_CHANGING_KINDS = _COUNTED_KINDS | {"DROP", "ALTER"}
+
+
+def _check_contract(safe_sql: str, statements: list[Statement],
+                    dialect: str) -> list[str]:
+    """The parts of the rewrite contract that code can verify, rather than trust.
+
+    Rule 4: every executable DELETE, UPDATE or TRUNCATE is immediately preceded by
+    a SELECT COUNT(*). Rule 8: a script whose original contained a destructive
+    statement must carry at least one [SafeMigrationGate] reason comment.
+    Commented-out statements are not executable, so the inert fallback script
+    satisfies both by construction.
+    """
+    reasons: list[str] = []
+    previous = ""
+    for segment in split_segments(_executable_text(safe_sql)):
+        text = segment.strip()
+        if not text:
+            continue
+        if (statement_kind(text, dialect) in _COUNTED_KINDS
+                and not _COUNT_SELECT.match(previous)):
+            reasons.append("a destructive statement has no SELECT COUNT(*) "
+                           f"immediately before it: {text[:80]}")
+        previous = text
+
+    destructive = any(statement_kind(s["text"], dialect) in _CHANGING_KINDS
+                      for s in statements)
+    if destructive and _MARKER not in safe_sql:
+        reasons.append(f"no {_MARKER} comment explains any change")
+    return reasons
 
 
 def normalize(sql: str) -> str:
@@ -171,14 +207,21 @@ def check_invariant(
     invariant_held, invariant_reasons = _check_rollback_invariant(safe_sql, dialect)
     reasons.extend(invariant_reasons)
 
+    # 4. the contract rules that can be checked mechanically
+    contract_reasons = _check_contract(safe_sql, statements, dialect) if validity else []
+    reasons.extend(contract_reasons)
+
     return InvariantReport(validity=validity, no_omissions=no_omissions,
-                           invariant_held=invariant_held, reasons=reasons)
+                           invariant_held=invariant_held,
+                           contract_followed=not contract_reasons, reasons=reasons)
 
 
 def to_eval_result(report: InvariantReport, equivalence: int) -> EvalResult:
-    """passed = validity AND no-omissions AND invariant AND equivalence >= 4."""
+    """passed = validity AND no-omissions AND invariant AND contract AND
+    equivalence >= 4."""
     passed = (report["validity"] and report["no_omissions"]
-              and report["invariant_held"] and equivalence >= 4)
+              and report["invariant_held"]
+              and report.get("contract_followed", True) and equivalence >= 4)
     return EvalResult(passed=passed, equivalence=equivalence,
                       validity=report["validity"], reasons=list(report["reasons"]))
 

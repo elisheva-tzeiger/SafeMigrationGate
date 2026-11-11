@@ -115,7 +115,7 @@ def test_declining_the_dry_run_continues_with_unverified_impact(
         scripted_model, script, demo_db):
     scripted_model('{"verdict": "proceed", "reason": ""}',
                    '{"summary": "empties users", "per_finding": []}',
-                   "BEGIN;\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
+                   "BEGIN;\n-- [SafeMigrationGate] SG001: neutralised.\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
                    '{"equivalence": 5, "reasons": []}',
                    "# Risk report\nbody")
 
@@ -132,7 +132,7 @@ def test_declining_the_write_leaves_the_disk_untouched(
         scripted_model, script, demo_db):
     scripted_model('{"verdict": "proceed", "reason": ""}',
                    '{"summary": "empties users", "per_finding": []}',
-                   "BEGIN;\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
+                   "BEGIN;\n-- [SafeMigrationGate] SG001: neutralised.\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
                    '{"equivalence": 5, "reasons": []}',
                    "# Risk report\nbody")
 
@@ -149,7 +149,7 @@ def test_declining_the_write_leaves_the_disk_untouched(
 def test_the_happy_path_writes_both_files(scripted_model, script, demo_db):
     scripted_model('{"verdict": "proceed", "reason": ""}',
                    '{"summary": "empties users", "per_finding": []}',
-                   "BEGIN;\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
+                   "BEGIN;\n-- [SafeMigrationGate] SG001: neutralised.\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n",
                    '{"equivalence": 5, "reasons": []}',
                    "# Risk report\nbody")
 
@@ -170,7 +170,7 @@ def test_the_happy_path_writes_both_files(scripted_model, script, demo_db):
 
 def test_a_rejected_rewrite_is_retried_then_accepted(scripted_model, script, demo_db):
     bad = "BEGIN;\n-- DELETE FROM users;\nCOMMIT;\n"     # active COMMIT
-    good = "BEGIN;\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n"
+    good = "BEGIN;\n-- [SafeMigrationGate] SG001: neutralised.\n-- DELETE FROM users;\nROLLBACK;\n-- COMMIT;\n"
     scripted_model('{"verdict": "proceed", "reason": ""}',
                    '{"summary": "empties users", "per_finding": []}',
                    bad, '{"equivalence": 5, "reasons": []}',

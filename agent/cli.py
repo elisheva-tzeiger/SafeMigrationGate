@@ -41,6 +41,10 @@ SafeMigrationGate — a pre-flight gate for destructive SQL.
 
 This tool never COMMITs. Every database run is a transaction that ends in
 ROLLBACK, and the output is files on disk. Whether to run them is your call.
+
+Privacy: the text of a script you check is sent to OpenRouter and to the model
+provider behind it. Free models may log or train on what they receive. Do not
+check scripts that contain secrets or personal data.
 """
 
 _COMMANDS = {"check", "db", "rules", "why", "summary", "help", "quit", "exit", "?"}

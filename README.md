@@ -379,6 +379,25 @@ test suite (309 tests) runs entirely without network access using
 
 ## Known limitations
 
+### Privacy
+
+The full text of every script you check is sent to OpenRouter and on to the
+model provider behind the model you chose. Free models in particular may log
+requests or use them for training. Do not check scripts that contain secrets,
+credentials or personal data, and prefer a paid model for anything sensitive.
+The dry run itself never leaves your machine.
+
+### Model output is checked, not trusted
+
+The report and the safe script are written by a model, so the code verifies
+what it can. A report is replaced by the template report if it contains a
+`COMMIT;`, states a row count that was not measured, or omits one that was. A
+safe script must parse, keep every original statement, never COMMIT, put a
+`SELECT COUNT(*)` immediately before each executable DELETE/UPDATE/TRUNCATE,
+and carry at least one `[SafeMigrationGate]` reason comment. An equivalence
+score outside 1-5 is rejected. What code cannot verify, such as whether a
+summary is accurate, is still the model's word.
+
 ### Three heuristic rules
 
 **SG007 — Column type change.** Without access to the database schema, the rule
