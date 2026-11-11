@@ -20,6 +20,7 @@ a risk report. Whether to execute them is your decision.
 - Measure the real row count for each DML statement via a `BEGIN … ROLLBACK` dry run
 - Classify the overall risk level (LOW / MEDIUM / HIGH / CRITICAL) with an LLM that reads the safety-rule knowledge base
 - Rewrite the script into a safe, non-committing version: every destructive statement is preceded by a `SELECT COUNT(*)`, wrapped in a transaction, and ends with `ROLLBACK`
+- Show token usage and cost per node at the end of every `check` (free models show $0)
 - Produce a Markdown risk report with a findings table and confidence-tagged row counts
 - Answer questions about safety rules from a local knowledge base (`why SG004`, free-text search)
 
@@ -372,7 +373,7 @@ host is blocked at the network level — work with your network administrator or
 use a device outside the inspecting proxy.
 
 Evals 1 and 2 require a reachable `openrouter.ai`; Eval 3 does not. The offline
-test suite (309 tests) runs entirely without network access using
+test suite (327 tests) runs entirely without network access using
 `FakeListChatModel`.
 
 ---
@@ -491,6 +492,7 @@ SafeMigrationGate/
 │   ├── tools.py          # tool layer: measure_impact, lookup_rules, search_knowledge
 │   ├── prompts.py        # all LLM prompt strings
 │   ├── sqlparse.py       # dialect detection, statement splitting
+│   ├── usage.py          # token and cost per node, shown after every check
 │   └── resources.py      # file I/O and resource paths (PyInstaller-safe)
 ├── data/
 │   ├── seed.py           # builds data/demo.db
@@ -502,7 +504,7 @@ SafeMigrationGate/
 │   ├── scope_eval.py     # Eval 3: scope / refusal
 │   ├── fixtures/         # SQL scripts + ground_truth.json
 │   └── results/          # CSV output (gitignored)
-├── tests/                # 309 tests, 2 skipped (network-only)
+├── tests/                # 327 tests, 2 skipped (network-only)
 ├── .env.example
 ├── manifest.json
 ├── requirements.txt
@@ -547,5 +549,5 @@ approving files they had not yet seen.
 .venv/bin/python -m pytest                  # macOS / Linux
 ```
 
-Expected: **309 passed, 2 skipped** (the 2 skipped tests are marked
+Expected: **327 passed, 2 skipped** (the 2 skipped tests are marked
 `@pytest.mark.network` and require `openrouter.ai`).

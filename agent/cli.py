@@ -7,6 +7,7 @@ untouched.
 
 from __future__ import annotations
 
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -20,10 +21,11 @@ from agent import tools
 from agent.db import mask_url
 from agent.graph import build_graph
 from agent.knowledge import get_knowledge_base
-from agent.llm import MissingCredentials, scrub
+from agent.llm import DEFAULT_MODEL, MissingCredentials, scrub
 from agent.nodes import IngestFailure
 from agent.rules import RULE_SEVERITY, RULE_TITLES, BLOCKING_RULES
 from agent.state import initial_state
+from agent.usage import NodeUsageCollector, cost_for, fetch_prices
 
 HELP_TEXT = """\
 SafeMigrationGate — a pre-flight gate for destructive SQL.
@@ -185,7 +187,11 @@ class Repl:
             self.say("Usage: check <path.sql>")
             return True
 
-        config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        collector = NodeUsageCollector()
+        # callbacks go at the top level of the config, not inside `configurable`,
+        # or LangChain delivers no events to them
+        config = {"configurable": {"thread_id": str(uuid.uuid4())},
+                  "callbacks": [collector]}
         state = initial_state(argument, "", "", self.db_url)
 
         try:
@@ -207,6 +213,7 @@ class Repl:
             return True
 
         self._summarise(self.graph.get_state(config).values)
+        self._show_usage(collector)
         return True
 
     def _pump(self, stream) -> None:
@@ -264,6 +271,35 @@ class Repl:
             table.add_row(str(row["statement_index"]), count,
                           row["confidence"], row["note"])
         self.console.print(table)
+
+    def _show_usage(self, collector: NodeUsageCollector) -> None:
+        """Tokens and cost for the run just finished, per node and in total."""
+        totals = collector.totals()
+        if not totals["prompt_tokens"] and not totals["completion_tokens"]:
+            return
+        model = os.environ.get("SMG_MODEL") or DEFAULT_MODEL
+        prices = fetch_prices(model)
+
+        table = Table(title=f"Usage - {model}")
+        table.add_column("Node")
+        table.add_column("Prompt tokens", justify="right")
+        table.add_column("Completion tokens", justify="right")
+        for node, usage in sorted(collector.usage.items()):
+            table.add_row(node, f"{usage['prompt_tokens']:,}",
+                          f"{usage['completion_tokens']:,}")
+        table.add_row("[bold]total[/bold]", f"{totals['prompt_tokens']:,}",
+                      f"{totals['completion_tokens']:,}")
+        self.console.print(table)
+
+        if prices is None:
+            line = "Cost: unavailable (could not read the price list)."
+        else:
+            cost = cost_for(totals["prompt_tokens"], totals["completion_tokens"], prices)
+            line = f"Cost: ${cost:.4f}" + (" (free model)" if model.endswith(":free") else "")
+        self.say(line)
+        self.transcript.append(
+            f"usage: {totals['prompt_tokens']} prompt + "
+            f"{totals['completion_tokens']} completion tokens; {line}")
 
     def _summarise(self, values: dict) -> None:
         if values.get("verdict") == "refused":

@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import csv
 import os
-from collections import defaultdict
 from pathlib import Path
 
-from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from agent.graph import build_graph
+from agent.usage import NodeUsageCollector, cost_for  # noqa: F401  (re-exported)
 from agent.state import initial_state
 from evals.model_registry import (
     equivalent_paid_model,
@@ -33,63 +32,6 @@ CSV_COLUMNS = ["task", "node", "model", "prompt_tokens", "completion_tokens",
 
 TASKS = ["01_delete_no_where.sql", "03_tautological_where.sql",
          "05_safe_migration.sql", "07_mixed_batch.sql"]
-
-
-class NodeUsageCollector(BaseCallbackHandler):
-    """Attributes token usage to the run_name each node passes to with_config.
-
-    Implementation note: in langchain-core, ``on_llm_end`` does **not** receive
-    ``name`` or ``metadata`` in its ``**kwargs`` — those keys are absent from the
-    signature.  The ``name`` kwarg *is* present in ``on_chat_model_start``, so we
-    capture the ``run_id → name`` mapping there and look it up in ``on_llm_end``
-    using the matching ``run_id``.  (Measured with a FakeListChatModel probe on
-    langchain-core 1.6.0; see probe_attribution.py in the task-17 report.)
-    """
-
-    def __init__(self) -> None:
-        self.usage: dict[str, dict[str, int]] = defaultdict(
-            lambda: {"prompt_tokens": 0, "completion_tokens": 0})
-        self._run_name_by_id: dict[str, str] = {}
-
-    def record(self, node: str | None, prompt_tokens: int,
-               completion_tokens: int) -> None:
-        bucket = self.usage[node or "(unnamed)"]
-        bucket["prompt_tokens"] += prompt_tokens
-        bucket["completion_tokens"] += completion_tokens
-
-    def on_chat_model_start(  # noqa: D102
-            self, serialized: dict, messages: list, **kwargs: object) -> None:
-        run_id = kwargs.get("run_id")
-        name = kwargs.get("name")
-        if run_id and name:
-            self._run_name_by_id[str(run_id)] = str(name)
-
-    def on_llm_end(self, response, **kwargs) -> None:  # noqa: ANN001, D102
-        # ``name`` is NOT in on_llm_end kwargs; look it up via run_id captured
-        # in on_chat_model_start above.
-        name = self._run_name_by_id.get(str(kwargs.get("run_id", "")))
-        usage = (response.llm_output or {}).get("token_usage") or {}
-        if not usage:
-            for generations in response.generations:
-                for generation in generations:
-                    message = getattr(generation, "message", None)
-                    meta = getattr(message, "usage_metadata", None) or {}
-                    if meta:
-                        usage = {"prompt_tokens": meta.get("input_tokens", 0),
-                                 "completion_tokens": meta.get("output_tokens", 0)}
-        self.record(name, int(usage.get("prompt_tokens", 0)),
-                    int(usage.get("completion_tokens", 0)))
-
-    def totals(self) -> dict[str, int]:
-        return {
-            "prompt_tokens": sum(v["prompt_tokens"] for v in self.usage.values()),
-            "completion_tokens": sum(v["completion_tokens"] for v in self.usage.values()),
-        }
-
-
-def cost_for(prompt_tokens: int, completion_tokens: int,
-             prices: tuple[float, float]) -> float:
-    return prompt_tokens * prices[0] + completion_tokens * prices[1]
 
 
 def _run(model: str, fixture: Path, collector: NodeUsageCollector) -> None:
