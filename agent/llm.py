@@ -70,7 +70,7 @@ def make_llm(model: str | None = None, temperature: float = 0.0) -> BaseChatMode
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         raise MissingCredentials(
-            "OPENROUTER_API_KEY is not set. Copy .env.example to .env and fill it in."
+            "OPENROUTER_API_KEY is not set. Create a file named .env (not .env.txt) next to the program, containing OPENROUTER_API_KEY=your-key. See .env.example."
         )
     install_tls_trust()
     return ChatOpenAI(

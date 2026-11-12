@@ -323,6 +323,11 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     from dotenv import load_dotenv
 
+    # The packaged exe is often started from a different folder than the one it
+    # sits in (a terminal, a shortcut). Look beside the exe first, then in the
+    # current folder; values already set in the environment always win.
+    if getattr(sys, "frozen", False):
+        load_dotenv(Path(sys.executable).parent / ".env")
     load_dotenv()
 
     console = Console(no_color="--no-color" in argv)
