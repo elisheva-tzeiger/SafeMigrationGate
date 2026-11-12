@@ -1,66 +1,76 @@
 task,node,model,prompt_tokens,completion_tokens,actual_cost_usd,theoretical_cost_usd
+01_delete_no_where.sql,classify_risk,nvidia/nemotron-3-ultra-550b-a55b:free,1421,317,0.000000,0.001613
+01_delete_no_where.sql,evaluate,nvidia/nemotron-3-ultra-550b-a55b:free,1659,5621,0.000000,0.014486
+01_delete_no_where.sql,guardrail_input,nvidia/nemotron-3-ultra-550b-a55b:free,215,108,0.000000,0.000388
+01_delete_no_where.sql,report,nvidia/nemotron-3-ultra-550b-a55b:free,726,658,0.000000,0.002015
+01_delete_no_where.sql,rewrite_safe,nvidia/nemotron-3-ultra-550b-a55b:free,1419,2668,0.000000,0.007255
+01_delete_no_where.sql,TASK TOTAL,nvidia/nemotron-3-ultra-550b-a55b:free,5440,9372,0.000000,0.025757
+03_tautological_where.sql,classify_risk,nvidia/nemotron-3-ultra-550b-a55b:free,1568,723,0.000000,0.002676
+03_tautological_where.sql,guardrail_input,nvidia/nemotron-3-ultra-550b-a55b:free,232,113,0.000000,0.000410
+03_tautological_where.sql,rewrite_safe,nvidia/nemotron-3-ultra-550b-a55b:free,950,1638,0.000000,0.004501
+03_tautological_where.sql,TASK TOTAL,nvidia/nemotron-3-ultra-550b-a55b:free,2750,2474,0.000000,0.007588
 01_delete_no_where.sql,classify_risk,openai/gpt-4o-mini,1361,167,0.000304,0.000304
-01_delete_no_where.sql,evaluate,openai/gpt-4o-mini,1594,130,0.000317,0.000317
+01_delete_no_where.sql,evaluate,openai/gpt-4o-mini,1599,174,0.000344,0.000344
 01_delete_no_where.sql,guardrail_input,openai/gpt-4o-mini,209,13,0.000039,0.000039
-01_delete_no_where.sql,report,openai/gpt-4o-mini,638,302,0.000277,0.000277
-01_delete_no_where.sql,rewrite_safe,openai/gpt-4o-mini,1333,385,0.000431,0.000431
-01_delete_no_where.sql,TASK TOTAL,openai/gpt-4o-mini,5135,997,0.001368,0.001368
+01_delete_no_where.sql,report,openai/gpt-4o-mini,638,291,0.000270,0.000270
+01_delete_no_where.sql,rewrite_safe,openai/gpt-4o-mini,1357,390,0.000438,0.000438
+01_delete_no_where.sql,TASK TOTAL,openai/gpt-4o-mini,5164,1035,0.001396,0.001396
 03_tautological_where.sql,guardrail_input,openai/gpt-4o-mini,226,37,0.000056,0.000056
 03_tautological_where.sql,TASK TOTAL,openai/gpt-4o-mini,226,37,0.000056,0.000056
-05_safe_migration.sql,classify_risk,openai/gpt-4o-mini,239,62,0.000073,0.000073
-05_safe_migration.sql,evaluate,openai/gpt-4o-mini,437,23,0.000079,0.000079
+05_safe_migration.sql,classify_risk,openai/gpt-4o-mini,239,56,0.000069,0.000069
+05_safe_migration.sql,evaluate,openai/gpt-4o-mini,437,50,0.000096,0.000096
 05_safe_migration.sql,guardrail_input,openai/gpt-4o-mini,210,13,0.000039,0.000039
-05_safe_migration.sql,report,openai/gpt-4o-mini,478,212,0.000199,0.000199
+05_safe_migration.sql,report,openai/gpt-4o-mini,469,249,0.000220,0.000220
 05_safe_migration.sql,rewrite_safe,openai/gpt-4o-mini,376,33,0.000076,0.000076
-05_safe_migration.sql,TASK TOTAL,openai/gpt-4o-mini,1740,343,0.000467,0.000467
+05_safe_migration.sql,TASK TOTAL,openai/gpt-4o-mini,1731,401,0.000500,0.000500
 07_mixed_batch.sql,guardrail_input,openai/gpt-4o-mini,246,29,0.000054,0.000054
 07_mixed_batch.sql,TASK TOTAL,openai/gpt-4o-mini,246,29,0.000054,0.000054
-01_delete_no_where.sql,classify_risk,anthropic/claude-haiku-4.5,1492,311,0.003047,0.003047
+01_delete_no_where.sql,classify_risk,anthropic/claude-haiku-4.5,1492,315,0.003067,0.003067
 01_delete_no_where.sql,evaluate,anthropic/claude-haiku-4.5,1595,614,0.004665,0.004665
 01_delete_no_where.sql,guardrail_input,anthropic/claude-haiku-4.5,220,77,0.000605,0.000605
-01_delete_no_where.sql,report,anthropic/claude-haiku-4.5,842,417,0.002927,0.002927
+01_delete_no_where.sql,report,anthropic/claude-haiku-4.5,846,403,0.002861,0.002861
 01_delete_no_where.sql,rewrite_safe,anthropic/claude-haiku-4.5,1753,338,0.003443,0.003443
-01_delete_no_where.sql,TASK TOTAL,anthropic/claude-haiku-4.5,5902,1757,0.014687,0.014687
+01_delete_no_where.sql,TASK TOTAL,anthropic/claude-haiku-4.5,5906,1747,0.014641,0.014641
 03_tautological_where.sql,classify_risk,anthropic/claude-haiku-4.5,1648,244,0.002868,0.002868
-03_tautological_where.sql,evaluate,anthropic/claude-haiku-4.5,1819,622,0.004929,0.004929
+03_tautological_where.sql,evaluate,anthropic/claude-haiku-4.5,1820,599,0.004815,0.004815
 03_tautological_where.sql,guardrail_input,anthropic/claude-haiku-4.5,238,65,0.000563,0.000563
 03_tautological_where.sql,report,anthropic/claude-haiku-4.5,787,509,0.003332,0.003332
-03_tautological_where.sql,rewrite_safe,anthropic/claude-haiku-4.5,1862,508,0.004402,0.004402
-03_tautological_where.sql,TASK TOTAL,anthropic/claude-haiku-4.5,6354,1948,0.016094,0.016094
+03_tautological_where.sql,rewrite_safe,anthropic/claude-haiku-4.5,1863,509,0.004408,0.004408
+03_tautological_where.sql,TASK TOTAL,anthropic/claude-haiku-4.5,6356,1926,0.015986,0.015986
 05_safe_migration.sql,classify_risk,anthropic/claude-haiku-4.5,264,55,0.000539,0.000539
 05_safe_migration.sql,evaluate,anthropic/claude-haiku-4.5,925,241,0.002130,0.002130
 05_safe_migration.sql,guardrail_input,anthropic/claude-haiku-4.5,221,19,0.000316,0.000316
 05_safe_migration.sql,report,anthropic/claude-haiku-4.5,510,249,0.001755,0.001755
 05_safe_migration.sql,rewrite_safe,anthropic/claude-haiku-4.5,927,80,0.001327,0.001327
 05_safe_migration.sql,TASK TOTAL,anthropic/claude-haiku-4.5,2847,644,0.006067,0.006067
-07_mixed_batch.sql,classify_risk,anthropic/claude-haiku-4.5,4978,621,0.008083,0.008083
+07_mixed_batch.sql,classify_risk,anthropic/claude-haiku-4.5,4978,661,0.008283,0.008283
 07_mixed_batch.sql,evaluate,anthropic/claude-haiku-4.5,2457,578,0.005347,0.005347
 07_mixed_batch.sql,guardrail_input,anthropic/claude-haiku-4.5,262,19,0.000357,0.000357
-07_mixed_batch.sql,report,anthropic/claude-haiku-4.5,1663,846,0.005893,0.005893
+07_mixed_batch.sql,report,anthropic/claude-haiku-4.5,1703,905,0.006228,0.006228
 07_mixed_batch.sql,rewrite_safe,anthropic/claude-haiku-4.5,2361,1074,0.007731,0.007731
-07_mixed_batch.sql,TASK TOTAL,anthropic/claude-haiku-4.5,11721,3138,0.027411,0.027411
-01_delete_no_where.sql,classify_risk,anthropic/claude-sonnet-4.5,1492,247,0.008181,0.008181
-01_delete_no_where.sql,evaluate,anthropic/claude-sonnet-4.5,1610,355,0.010155,0.010155
+07_mixed_batch.sql,TASK TOTAL,anthropic/claude-haiku-4.5,11761,3237,0.027946,0.027946
+01_delete_no_where.sql,classify_risk,anthropic/claude-sonnet-4.5,1492,256,0.008316,0.008316
+01_delete_no_where.sql,evaluate,anthropic/claude-sonnet-4.5,1671,349,0.010248,0.010248
 01_delete_no_where.sql,guardrail_input,anthropic/claude-sonnet-4.5,220,25,0.001035,0.001035
-01_delete_no_where.sql,report,anthropic/claude-sonnet-4.5,778,538,0.010404,0.010404
-01_delete_no_where.sql,rewrite_safe,anthropic/claude-sonnet-4.5,1587,353,0.010056,0.010056
-01_delete_no_where.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,5687,1518,0.039831,0.039831
-03_tautological_where.sql,classify_risk,anthropic/claude-sonnet-4.5,1648,272,0.009024,0.009024
-03_tautological_where.sql,evaluate,anthropic/claude-sonnet-4.5,1794,336,0.010422,0.010422
+01_delete_no_where.sql,report,anthropic/claude-sonnet-4.5,787,578,0.011031,0.011031
+01_delete_no_where.sql,rewrite_safe,anthropic/claude-sonnet-4.5,1570,414,0.010920,0.010920
+01_delete_no_where.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,5740,1622,0.041550,0.041550
+03_tautological_where.sql,classify_risk,anthropic/claude-sonnet-4.5,1648,288,0.009264,0.009264
+03_tautological_where.sql,evaluate,anthropic/claude-sonnet-4.5,1820,360,0.010860,0.010860
 03_tautological_where.sql,guardrail_input,anthropic/claude-sonnet-4.5,238,25,0.001089,0.001089
-03_tautological_where.sql,report,anthropic/claude-sonnet-4.5,815,477,0.009600,0.009600
-03_tautological_where.sql,rewrite_safe,anthropic/claude-sonnet-4.5,1682,483,0.012291,0.012291
-03_tautological_where.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,6177,1593,0.042426,0.042426
+03_tautological_where.sql,report,anthropic/claude-sonnet-4.5,831,537,0.010548,0.010548
+03_tautological_where.sql,rewrite_safe,anthropic/claude-sonnet-4.5,1699,509,0.012732,0.012732
+03_tautological_where.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,6236,1719,0.044493,0.044493
 05_safe_migration.sql,classify_risk,anthropic/claude-sonnet-4.5,264,64,0.001752,0.001752
-05_safe_migration.sql,evaluate,anthropic/claude-sonnet-4.5,956,158,0.005238,0.005238
+05_safe_migration.sql,evaluate,anthropic/claude-sonnet-4.5,1350,238,0.007620,0.007620
 05_safe_migration.sql,guardrail_input,anthropic/claude-sonnet-4.5,221,19,0.000948,0.000948
 05_safe_migration.sql,report,anthropic/claude-sonnet-4.5,519,293,0.005952,0.005952
-05_safe_migration.sql,rewrite_safe,anthropic/claude-sonnet-4.5,903,106,0.004299,0.004299
-05_safe_migration.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,2863,640,0.018189,0.018189
-07_mixed_batch.sql,classify_risk,anthropic/claude-sonnet-4.5,4978,716,0.025674,0.025674
-07_mixed_batch.sql,evaluate,anthropic/claude-sonnet-4.5,757,133,0.004266,0.004266
+05_safe_migration.sql,rewrite_safe,anthropic/claude-sonnet-4.5,1401,75,0.005328,0.005328
+05_safe_migration.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,3755,689,0.021600,0.021600
+07_mixed_batch.sql,classify_risk,anthropic/claude-sonnet-4.5,4978,692,0.025314,0.025314
+07_mixed_batch.sql,evaluate,anthropic/claude-sonnet-4.5,757,136,0.004311,0.004311
 07_mixed_batch.sql,guardrail_input,anthropic/claude-sonnet-4.5,262,25,0.001161,0.001161
-07_mixed_batch.sql,report,anthropic/claude-sonnet-4.5,1758,1001,0.020289,0.020289
+07_mixed_batch.sql,report,anthropic/claude-sonnet-4.5,1734,956,0.019542,0.019542
 07_mixed_batch.sql,rewrite_safe,anthropic/claude-sonnet-4.5,671,296,0.006453,0.006453
-07_mixed_batch.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,8426,2171,0.057843,0.057843
-ALL,GRAND TOTAL,,,,0.224494,0.224494
+07_mixed_batch.sql,TASK TOTAL,anthropic/claude-sonnet-4.5,8402,2105,0.056781,0.056781
+ALL,GRAND TOTAL,,,,0.231070,0.264415
