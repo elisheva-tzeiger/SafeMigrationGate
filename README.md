@@ -13,6 +13,40 @@ a risk report. Whether to execute them is your decision.
 
 ---
 
+## Quick start (no Python needed)
+
+1. Download `agent.exe` from the
+   [Releases page](https://github.com/elisheva-tzeiger/SafeMigrationGate/releases).
+2. Create a free key at <https://openrouter.ai/settings/keys> (use a paid model
+   for anything sensitive; see the privacy note below).
+3. In the **same folder as `agent.exe`**, create a text file named exactly
+   `.env` (not `.env.txt`) containing one line:
+
+   ```
+   OPENROUTER_API_KEY=sk-or-your-key-here
+   ```
+
+   The names of all supported settings are listed in `.env.example`:
+
+   | Name | Required | Purpose |
+   |---|---|---|
+   | `OPENROUTER_API_KEY` | yes | model access |
+   | `LANGSMITH_API_KEY` | no | send run traces to LangSmith |
+   | `LANGSMITH_TRACING` | no | `true` to turn tracing on |
+   | `LANGSMITH_PROJECT` | no | project name in LangSmith |
+
+4. Double-click `agent.exe`, then try:
+
+   ```
+   help
+   check C:\path\to\evals\fixtures\01_delete_no_where.sql
+   ```
+
+   Answer `Y` to the two approval prompts. A safe script and a risk report are
+   written next to the input file. Sample scripts are in `evals/fixtures/`.
+
+---
+
 ## What the agent does and does not do
 
 **Does:**
